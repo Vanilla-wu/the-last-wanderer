@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Last Wanderer · 末路行者</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+  <main id="game-root">
+    <canvas id="game" tabindex="0" aria-label="The Last Wanderer 遊戲畫面"></canvas>
+    <noscript>需要啟用 JavaScript 才能遊玩。</noscript>
+  </main>
+
+  <!-- 關卡資料 -->
+  <script src="data/level01.js"></script>
+  <script src="data/parkour01.js"></script>
+
+  <!-- Core -->
+  <script src="js/core/Storage.js"></script>
+  <script src="js/core/GameState.js"></script>
+  <script src="js/core/InputManager.js"></script>
+  <script src="js/core/GameLoop.js"></script>
+
+  <!-- Systems -->
+  <script src="js/systems/Physics.js"></script>
+  <script src="js/systems/Collision.js"></script>
+  <script src="js/systems/Animation.js"></script>
+  <script src="js/systems/Audio.js"></script>
+  <script src="js/systems/Effects.js"></script>
+  <script src="js/systems/Vision.js"></script>
+
+  <!-- Art（程序化像素美術） -->
+  <script src="js/art/Sprites.js"></script>
+
+  <!-- Entities -->
+  <script src="js/entities/Entity.js"></script>
+  <script src="js/entities/Player.js"></script>
+  <script src="js/entities/Enemy.js"></script>
+  <script src="js/entities/Pickup.js"></script>
+  <script src="js/entities/Breakable.js"></script>
+  <script src="js/entities/Anchor.js"></script>
+  <script src="js/entities/Projectile.js"></script>
+  <script src="js/systems/Combat.js"></script>
+
+  <!-- World -->
+  <script src="js/world/Tilemap.js"></script>
+  <script src="js/world/Camera.js"></script>
+  <script src="js/world/Background.js"></script>
+  <script src="js/world/Level.js"></script>
+
+  <!-- UI -->
+  <script src="js/ui/HUD.js"></script>
+  <script src="js/ui/Menu.js"></script>
+
+  <script src="js/Game.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

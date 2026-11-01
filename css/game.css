@@ -1,0 +1,9 @@
+#game {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  outline: none;
+  background: #05070d;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
+  cursor: default;
+}
