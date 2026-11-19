@@ -327,7 +327,8 @@ function legTo(dx, dy) {
 
 function comboPose(q, f, n) {
   const K = COMBO_SCALE;
-  const ox = q.x * K, oy = q.y * K;                  // 整個人的位移（pixelfx 的 x、y）
+  // pixelfx 的 x 是整個人前後移動（蓄勢時後退、出刀時前衝），劍客原地揮刀，只保留上下（小跳）
+  const ox = 0, oy = q.y * K;
   const hx = ox, hy = q.crouch * K + oy;
   const lean = Math.max(-24, Math.min(24, q.lean * K));
   const sinT = lean / 26, cosT = Math.sqrt(1 - sinT * sinT);

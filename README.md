@@ -85,7 +85,7 @@ python serve.py
 - **表現**：程序化像素美術、多層視差背景、寒霧、飄雪、粒子、Web Audio 合成音效與風聲
 - **pixelfx 特效**（[patch-gg/pixelfx](https://github.com/patch-gg/pixelfx)，MIT）：
   - 三連擊的動作取自 pixelfx 的 `moves/sword-combo`：斜劈、交叉雙斬、雙手重劈。姿勢由 `node tools/sample_combo.mjs <pixelfx 資料夾>` 取樣到 `data/swordcombo.js`，在 `js/art/Sprites.js` 的 `comboPose()` 放大 2 倍轉套到劍客身上（另用 240×160 的畫格）
-  - 節奏維持原本的連段：`Player.js` 的 `COMBO_TIMING` 把 pixelfx 時間軸上的「開始、命中、結束」對到遊戲的「開始、判定開始、收刀」
+  - 節奏：`Player.js` 的 `COMBO_TIMING` 只取 pixelfx 時間軸上「刀舉到最高 → 出刀後停住」那一段，壓縮到遊戲的「開始、判定開始、收刀」；第一、二擊 0.24 秒、收尾 0.32 秒，劍客原地揮刀不前後位移
   - 刀光：三連擊用對應的 pixelfx 刀光（斜劈、冰藍色交叉雙斬、冰藍色雙手重劈）；上劈、下劈把斜劈的刀光轉 90 度
   - 命中：一般命中是打擊火花，連段收尾與螺旋斬最後一斬是爆擊火花；一般攻擊砍到冰壁是格擋火花
   - 傷害數字（-1、-2）從敵人頭上彈出；1.2 秒內連續命中兩次以上，畫面右上顯示金色連擊數（最多 x20）

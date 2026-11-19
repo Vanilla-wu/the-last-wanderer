@@ -27,18 +27,19 @@ const PLAYER_CONFIG = Object.freeze({
   coyoteTime: 0.1, jumpBufferTime: 0.12,
   maxHp: 3,
   attackDuration: 0.3,
-  attackCooldown: 0.36, attackDamage: 1, attackMoveFactor: 0.35,
+  attackCooldown: 0.3, attackDamage: 1, attackMoveFactor: 0.35,
   // 橫斬連段：揮刀中再按 J 預約下一擊，最多三段；不再按就在該段結束時收刀
-  comboInputStart: 0.08,   // 揮刀多久後開始接受下一擊的輸入
-  comboChainTime: 0.22,    // 預約後最早在這個時間點接上下一擊
+  comboDuration: 0.24,     // 第一、二擊的長度（上劈、下劈仍是 attackDuration）
+  comboInputStart: 0.05,   // 揮刀多久後開始接受下一擊的輸入
+  comboChainTime: 0.15,    // 預約後最早在這個時間點接上下一擊
   comboWindow: 0.3,        // 收刀後仍可接續下一擊的時間
   attackBufferTime: 0.25,  // J 的輸入緩衝（命中停頓期間按下也不會漏掉）
-  finisherDuration: 0.39, finisherWindow: [0.13, 0.27], finisherCooldown: 0.5,
+  finisherDuration: 0.32, finisherWindow: [0.09, 0.21], finisherCooldown: 0.45,
   finisherDamage: 2, finisherBox: { width: 84, height: 64, offsetY: 6 },
-  finisherStep: [0.11, 0.2], finisherStepSpeed: 230, finisherKnockback: 1.7,
+  finisherStep: [0.07, 0.15], finisherStepSpeed: 230, finisherKnockback: 1.7,
   attackBox: { width: 64, height: 60, offsetY: 8 },
   // 上劈 / 下劈：判定時間與判定框（相對於角色中心與頭頂）
-  attackWindows: { side: [0.06, 0.2], up: [0.06, 0.2], down: [0.04, 0.24] },
+  attackWindows: { side: [0.04, 0.16], up: [0.06, 0.2], down: [0.04, 0.24] },
   upAttackBox: { width: 80, height: 60, offsetY: -34 },
   downAttackBox: { width: 68, height: 66, offsetY: 46 },
   pogoForce: 560, pogoGrace: 0.15,
@@ -63,12 +64,13 @@ const PLAYER_CONFIG = Object.freeze({
 
 const ATTACK_ANIMS = { side: 'attack', up: 'attackUp', down: 'attackDown' };
 // 三連擊的動作取自 pixelfx 的 moves/sword-combo（Sprites.playerCombo），節奏維持原本的連段：
-// 把 pixelfx 時間軸上的「開始、命中、結束」對到遊戲裡的「開始、判定開始、收刀」，中間線性壓縮
+// 把 pixelfx 時間軸上的一段對到遊戲裡的「開始、判定開始、收刀」，中間線性壓縮。
+// 只取刀舉到最高之後到出刀後停住的那一段：不從架刀開始蓄勢，也不演完收刀回架勢，手感才俐落
 const COMBO_ANIMS = ['combo1', 'combo2', 'combo3'];
 const COMBO_TIMING = [
-  { game: [0, 0.06, 0.3], src: [0, 0.67, 0.91] },             // 斜劈（命中對到刀揮到前下方的那一格）
-  { game: [0, 0.06, 0.13, 0.3], src: [0, 0.2, 0.3, 0.38] },   // 交叉雙斬（兩刀）
-  { game: [0, 0.13, 0.39], src: [0, 0.64, 1.6] }              // 雙手重劈
+  { game: [0, 0.04, 0.24], src: [0.25, 0.67, 0.82] },              // 斜劈：刀在頭後 → 揮到前下方
+  { game: [0, 0.04, 0.09, 0.24], src: [0.08, 0.2, 0.3, 0.36] },    // 交叉雙斬（兩刀）
+  { game: [0, 0.09, 0.32], src: [0.4, 0.64, 0.95] }                // 雙手重劈：高舉 → 劈進地面
 ];
 const COMBO_SLASHES = ['side', 'side2', 'side3'];
 const COMBO_SOUNDS = ['slash', 'slash2', 'slash3'];
@@ -308,7 +310,7 @@ class Player extends Entity {
       }
       if (this.comboQueued && this.stateTime >= cfg.comboChainTime) {
         this._beginAttack(this.comboStep + 1, move, game);
-      } else if (this.stateTime >= (this.isFinisher() ? cfg.finisherDuration : cfg.attackDuration)) {
+      } else if (this.stateTime >= (this.isFinisher() ? cfg.finisherDuration : this.comboStep > 0 ? cfg.comboDuration : cfg.attackDuration)) {
         this._endAttack();
         // 揮刀結束時仍按住 J → 進入蓄力（需取得「居合之卷」）
         if (!locked && this.abilities.chargeSlash && input.isDown('attack')) this._startCharge(game);
