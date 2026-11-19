@@ -35,7 +35,7 @@ class Enemy extends Entity {
   }
 
   get isDead() { return this.state === 'DEAD'; }
-  get harmless() { return false; }   // true 時不造成接觸傷害（例如火焰骷髏飛回原位時）
+  get harmless() { return false; }   // true 時不造成接觸傷害（例如訓練用木樁）
 
   update(dt, map, game) {
     this.stateTime += dt;

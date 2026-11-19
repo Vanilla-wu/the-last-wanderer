@@ -72,7 +72,8 @@ python serve.py
   - 死亡或從檢查點重來時會恢復原狀；新增方式見 `data/level01.js` 的 `breakables` 與 `js/entities/Breakable.js`
 - **角色**：玩家 FSM（IDLE / RUN / JUMP / FALL / ATTACK / HURT / DEATH / DODGE）與 Sprite Sheet 動畫
 - **敵人**：森林妖怪（巡邏、轉身避開斷崖/牆/尖刺、接觸傷害、受擊、死亡）
-- **火焰骷髏**（`js/entities/FlyingSkull.js`，外觀取自 pixelfx 的 `critters/flying-skull`）：飛行敵人，生命 2；玩家進入約 7 格內就蓄勢 0.45 秒後俯衝。弱追蹤：俯衝速度 170（比跑速慢）、只在前 0.5 秒轉向且每秒最多轉約 35 度，往遠離的方向跑或衝刺就閃得掉；撞到劍客或地形後飛回原位（回程不造成傷害），冷卻 1.2 秒。第一章放在 D 區冰壁後、E 區石門前與神社前（關卡資料的 `skulls`）
+- **火焰骷髏**（`js/entities/FlyingSkull.js`，外觀取自 pixelfx 的 `critters/flying-skull`）：飛行敵人，生命 2，任何時候碰到都會受傷；玩家進入約 7 格內就蓄勢 0.45 秒後俯衝。弱追蹤：俯衝速度 190（和跑速一樣），只在前 0.5 秒、劍客還在前方時轉向，每秒最多轉 1.2 弧度；撞到劍客或地形後飛回原位，冷卻 1.2 秒。第一章放在 D 區冰壁後、E 區石門前與神社前（關卡資料的 `skulls`）
+- **訓練用木樁**（`js/entities/TrainingDummy.js`）：打不壞、不會動、不造成傷害；被打中會晃動並照常跳出火花、傷害數字與連擊數，下劈也能在上面彈起。第一章沿路放 5 根（A 區、C 區連段與上下劈教學旁、D 區取得居合之卷後、E 區取得蒼風之結後；關卡資料的 `dummies`）
 - **關卡**：A–E 五個區域（全長 363 格）、6 個石燈籠檢查點（LocalStorage 存檔，可從主選單繼續）、廢棄神社終點
 - **跑酷挑戰**（`data/parkour01.js`「風之試煉」，通關第一章後從主選單解鎖）
   - 所有能力一開始就全開，計時跑到終點鳥居；最佳紀錄與本篇分開保存
@@ -115,7 +116,7 @@ js/
   main.js, Game.js
   core/         GameLoop, InputManager, GameState, Storage
   systems/      Physics, Collision, Animation, Combat, Effects, FxSheets, Audio, Vision
-  entities/     Entity, Player, Enemy, FlyingSkull, Pickup, Anchor, Breakable
+  entities/     Entity, Player, Enemy, FlyingSkull, TrainingDummy, Pickup, Anchor, Breakable
   world/        Tilemap, Camera, Level, Background
   ui/           HUD, Menu
   art/          Sprites（程序化生成 Sprite Sheet、圖塊與道具）

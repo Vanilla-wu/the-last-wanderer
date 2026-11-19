@@ -86,6 +86,10 @@ class Level {
       { range, hp },
       T
     ));
+    // 訓練用木樁：[欄, 地面列]
+    for (const [tx, row] of this.data.dummies || []) {
+      this.enemies.push(new TrainingDummy(tx * T + (T - DUMMY_CONFIG.width) / 2, row * T - DUMMY_CONFIG.height));
+    }
     // 火焰骷髏：[欄, 列] 是飄浮的位置（骷髏中心）
     for (const [tx, row] of this.data.skulls || []) {
       const s = SKULL_CONFIG.size;

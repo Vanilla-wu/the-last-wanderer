@@ -3,15 +3,15 @@
  *
  * HOVER   在出生點附近上下飄浮；玩家進入偵測範圍就開始蓄勢
  * WINDUP  原地抖動、火焰變亮，提示即將俯衝
- * SWOOP   朝玩家俯衝；弱追蹤：只在前 homingTime 秒、劍客還在前方時轉向，每秒最多轉 turnRate，跳開或衝刺就閃得掉
- * RECOVER 撞到地形或衝完後飛回出生點，冷卻後才會再出手
+ * SWOOP   朝玩家俯衝；弱追蹤：只在前 homingTime 秒、劍客還在前方時轉向，每秒最多轉 turnRate
+ * RECOVER 撞到地形、撞到劍客或衝完後飛回出生點，冷卻後才會再出手（任何狀態碰到都會造成接觸傷害）
  * 不受重力、不走地形碰撞（只在俯衝撞到實心圖塊時停下）；接觸傷害、受擊、死亡沿用 Enemy。
  */
 const SKULL_CONFIG = Object.freeze({
   size: 26, hp: 2,
   detectRange: 230,                   // 玩家在這個距離內就開始蓄勢
   windup: 0.45,
-  swoopSpeed: 170, turnRate: 0.6,     // 比跑速（190）慢：往遠離的方向跑就甩得掉；每秒最多轉 0.6 弧度（約 35 度）
+  swoopSpeed: 190, turnRate: 1.2,     // 和跑速（190）一樣快；每秒最多轉 1.2 弧度（約 70 度）
   homingTime: 0.5,                    // 只在俯衝的前 0.5 秒追蹤；衝過劍客後也不再轉頭
   swoopTime: 1.3,
   returnSpeed: 110, cooldown: 1.2,
@@ -108,11 +108,6 @@ class FlyingSkull extends Enemy {
       if (this.trail.length > 24) this.trail.shift();
     }
     if (Math.random() < dt * 4) game.effects.ember(this.centerX + (Math.random() - 0.5) * 14, this.y);
-  }
-
-  /** 飛回原位與受擊時不造成接觸傷害（不會在回程又撞一次） */
-  get harmless() {
-    return this.state === 'RECOVER' || this.state === 'HURT';
   }
 
   /** 撞到劍客就收招飛回 */
