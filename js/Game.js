@@ -246,7 +246,7 @@ class Game {
 
   /** heavy：連段收尾、螺旋斬最後一斬，改用較大的爆擊火花 */
   onEnemyHit(enemy, killed, direction = this.player.facing, { damage = 1, heavy = false } = {}) {
-    this.hitstop = killed ? 0.11 : 0.07;
+    this.hitstop = 0.13;
     this.camera.shake(killed ? 4 : 2.5, 0.15);
     const hx = direction > 0 ? enemy.x : enemy.x + enemy.width;
     const spark = this.fx.play(heavy ? 'crit' : 'hitSpark', hx, enemy.centerY, { flipX: direction < 0 });

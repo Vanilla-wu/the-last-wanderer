@@ -34,6 +34,9 @@ const Combat = {
           game.hitstop = Math.max(game.hitstop, 0.1);
           game.camera.shake(5, 0.2);
         }
+        if (player.state === PLAYER_STATES.ATTACK && player.comboStep > 0 && !player.isFinisher()) {
+          enemy.velocityX *= player.cfg.comboKnockback;
+        }
         if (player.isFinisher()) {
           // 連段收尾：擊退更遠、停頓更久
           enemy.velocityX *= player.cfg.finisherKnockback;

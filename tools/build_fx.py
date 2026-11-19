@@ -6,6 +6,7 @@
     python tools/build_fx.py <pixelfx 資料夾>
 
 要換特效、換色或增減連擊數，改下面的 SHEETS 後重新執行即可。
+tools/pixelfx/ 裡是本專案自己修改過的 pixelfx 特效，匯出前會先複製進 pixelfx 的 src/fx/。
 """
 import json, os, shutil, subprocess, sys, tempfile
 
@@ -22,7 +23,7 @@ GOLD = ["#1a1205", "#3d2a0a", "#70501a", "#b08a2f", "#f5c84c", "#ffe3a8", "#fff4
 SHEETS = {
     'slash': ('melee/sword-slash', {}),                    # 三連擊第一擊：斜劈；轉 90 度成上劈 / 下劈
     'cross': ('melee/double-slash', {'palette': ICE}),     # 三連擊第二擊：交叉雙斬（換成冰藍色）
-    'cleave': ('melee/heavy-cleave', {'palette': ICE}),    # 三連擊第三擊：雙手重劈（換成冰藍色）
+    'cleave': ('melee/clean-cleave', {'palette': ICE}),    # 三連擊第三擊：雙手重劈（拿掉碎裂地板的版本，換成冰藍色）
     'hitSpark': ('impacts/hit-spark', {}),
     'crit': ('impacts/crit-hit', {}),                      # 收尾、螺旋斬最後一斬
     'parry': ('impacts/parry', {}),                        # 一般攻擊砍到冰壁
@@ -31,6 +32,13 @@ for n in (1, 2):
     SHEETS[f'dmg{n}'] = ('ui/damage-number', {'text': f'-{n}'})
 for n in range(2, 21):
     SHEETS[f'combo{n}'] = ('ui/combo-counter', {'count': n, 'palette': GOLD}, 20)   # 20 fps：檔案小一點
+
+# 本專案修改過的特效（tools/pixelfx/<分類>/<名稱>.js）
+CUSTOM = os.path.join(GAME, 'tools', 'pixelfx')
+for root, _, files in os.walk(CUSTOM):
+    for f in files:
+        rel = os.path.relpath(os.path.join(root, f), CUSTOM)
+        shutil.copy(os.path.join(root, f), os.path.join(PFX, 'src', 'fx', rel))
 
 shutil.rmtree(OUT, ignore_errors=True)
 dst_dir = os.path.join(GAME, 'assets', 'fx')

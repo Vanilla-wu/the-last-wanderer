@@ -67,7 +67,7 @@ window.FX_SHEETS = {
       68,
       96
     ],
-    "source": "melee/heavy-cleave",
+    "source": "melee/clean-cleave",
     "hits": [
       {
         "t": 0.335,

@@ -31,12 +31,13 @@ const PLAYER_CONFIG = Object.freeze({
   // 橫斬連段：揮刀中再按 J 預約下一擊，最多三段；不再按就在該段結束時收刀
   comboDuration: 0.24,     // 第一、二擊的長度（上劈、下劈仍是 attackDuration）
   comboInputStart: 0.05,   // 揮刀多久後開始接受下一擊的輸入
-  comboChainTime: 0.19,    // 預約後最早在這個時間點接上下一擊
+  comboChainTime: 0.3,     // 連按時在這個時間點接上下一擊（比單按的收刀晚，預約了就停在出刀姿勢等著接）
   comboWindow: 0.3,        // 收刀後仍可接續下一擊的時間
   attackBufferTime: 0.25,  // J 的輸入緩衝（命中停頓期間按下也不會漏掉）
   finisherDuration: 0.44, finisherWindow: [0.09, 0.21], finisherCooldown: 0.55,   // 重劈後多停一下，壓低身子收勢
   finisherDamage: 2, finisherBox: { width: 84, height: 64, offsetY: 6 },
   finisherStep: [0.07, 0.15], finisherStepSpeed: 230, finisherKnockback: 1.7,
+  comboKnockback: 0.5,     // 前兩擊的擊退減半，敵人留在下一擊的範圍內
   attackBox: { width: 64, height: 60, offsetY: 8 },
   // 上劈 / 下劈：判定時間與判定框（相對於角色中心與頭頂）
   attackWindows: { side: [0.04, 0.16], up: [0.06, 0.2], down: [0.04, 0.24] },
@@ -310,7 +311,7 @@ class Player extends Entity {
       }
       if (this.comboQueued && this.stateTime >= cfg.comboChainTime) {
         this._beginAttack(this.comboStep + 1, move, game);
-      } else if (this.stateTime >= (this.isFinisher() ? cfg.finisherDuration : this.comboStep > 0 ? cfg.comboDuration : cfg.attackDuration)) {
+      } else if (!this.comboQueued && this.stateTime >= (this.isFinisher() ? cfg.finisherDuration : this.comboStep > 0 ? cfg.comboDuration : cfg.attackDuration)) {
         this._endAttack();
         // 揮刀結束時仍按住 J → 進入蓄力（需取得「居合之卷」）
         if (!locked && this.abilities.chargeSlash && input.isDown('attack')) this._startCharge(game);
