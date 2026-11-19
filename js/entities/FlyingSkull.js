@@ -1,20 +1,23 @@
 /**
  * FlyingSkull —— 火焰骷髏（飛行敵人，外觀取自 pixelfx 的 critters/flying-skull）
  *
- * HOVER   在出生點附近上下飄浮；玩家進入偵測範圍就開始蓄勢
- * WINDUP  原地抖動、火焰變亮，提示即將俯衝
- * SWOOP   朝玩家俯衝；弱追蹤：只在前 homingTime 秒、劍客還在前方時轉向，每秒最多轉 turnRate
- * RECOVER 撞到地形、撞到劍客或衝完後飛回出生點，冷卻後才會再出手（任何狀態碰到都會造成接觸傷害）
- * 不受重力、不走地形碰撞（只在俯衝撞到實心圖塊時停下）；接觸傷害、受擊、死亡沿用 Enemy。
+ * HOVER   在目前的位置上下飄浮（一開始是出生點）；冷卻結束、玩家在攻擊判定區（detectRange）內就蓄勢
+ * WINDUP  原地抖動、閃白，提示即將俯衝
+ * SWOOP   朝玩家俯衝並穿過身體（碰到就受傷，不會因此停下）；弱追蹤：只在前 homingTime 秒、劍客還在前方時轉向
+ * ASCEND  俯衝結束（或撞到地形、被打中）後原地往上升回原本的高度，冷卻 cooldown 秒再出手——不會先飛回出生點
+ * RETURN  玩家離開攻擊判定區時，才飛回出生點
+ * 任何狀態碰到都會造成接觸傷害；不受重力、不走地形碰撞（只在俯衝撞到實心圖塊時停下）；受擊、死亡沿用 Enemy。
  */
 const SKULL_CONFIG = Object.freeze({
   size: 26, hp: 2,
-  detectRange: 230,                   // 玩家在這個距離內就開始蓄勢
+  detectRange: 230,                   // 攻擊判定區：玩家在這個距離內就會被攻擊；離開才飛回出生點
   windup: 0.45,
   swoopSpeed: 190, turnRate: 1.2,     // 和跑速（190）一樣快；每秒最多轉 1.2 弧度（約 70 度）
   homingTime: 0.5,                    // 只在俯衝的前 0.5 秒追蹤；衝過劍客後也不再轉頭
   swoopTime: 1.3,
-  returnSpeed: 110, cooldown: 1.2,
+  ascendSpeed: 130,                   // 攻擊後升回原本高度的速度
+  returnSpeed: 110,                   // 飛回出生點的速度
+  cooldown: 2,                        // 升回原本高度後，隔多久再發起攻擊
   bob: 6,                             // 飄浮時上下晃動的幅度
   spriteLift: 40                      // pixelfx 圖的骷髏在錨點（地面）上方 40px
 });
@@ -25,6 +28,7 @@ class FlyingSkull extends Enemy {
     this.width = this.height = SKULL_CONFIG.size;
     this.homeX = x;
     this.homeY = y;
+    this.hoverX = x;          // 目前飄浮的位置（攻擊後就在原地升回高度，不回出生點）
     this.state = 'HOVER';
     this.cooldown = 0;
     this.heading = 0;
@@ -49,19 +53,21 @@ class FlyingSkull extends Enemy {
 
     const dx = p.centerX - this.centerX, dy = p.centerY - this.centerY;
     const dist = Math.hypot(dx, dy);
-    const playerAlive = p.state !== PLAYER_STATES.DEATH;
+    const inRange = p.state !== PLAYER_STATES.DEATH && dist < cfg.detectRange;
 
     if (this.state === 'HURT') {
       // 與地面妖怪相同的 500 px/s² 減速：被圍巾拉近時剛好停在劍客面前
       this.velocityX = Physics.approach(this.velocityX, 0, 500 * dt);
       this.velocityY = Physics.approach(this.velocityY, 0, 500 * dt);
-      if (this.stateTime >= this.hurtTime) this._setState('RECOVER');
+      if (this.stateTime >= this.hurtTime) this._ascend();
     } else if (this.state === 'HOVER') {
-      const tx = this.homeX, ty = this.homeY + Math.sin(this.t * 2.2) * cfg.bob;
+      const tx = this.hoverX, ty = this.homeY + Math.sin(this.t * 2.2) * cfg.bob;
       this.velocityX = (tx - this.x) * 3;
       this.velocityY = (ty - this.y) * 3;
       if (Math.abs(dx) > 4) this.facing = Math.sign(dx);
-      if (playerAlive && this.cooldown <= 0 && dist < cfg.detectRange) {
+      if (!inRange && Math.abs(this.hoverX - this.homeX) > 2) {
+        this._setState('RETURN');           // 玩家走遠了才回出生點
+      } else if (inRange && this.cooldown <= 0) {
         this._setState('WINDUP');
         game.audio.play('skullWindup');
       }
@@ -74,9 +80,9 @@ class FlyingSkull extends Enemy {
         game.audio.play('skullSwoop');
       }
     } else if (this.state === 'SWOOP') {
-      // 弱追蹤：俯衝前段、劍客還在前方時才轉向，而且每秒只能轉 turnRate
+      // 弱追蹤：俯衝前段、劍客還在前方時才轉向，而且每秒只能轉 turnRate；撞到劍客也不停，直接穿過去
       const ahead = dx * Math.cos(this.heading) + dy * Math.sin(this.heading) > 0;
-      if (playerAlive && ahead && this.stateTime < cfg.homingTime) {
+      if (p.state !== PLAYER_STATES.DEATH && ahead && this.stateTime < cfg.homingTime) {
         let diff = Math.atan2(dy, dx) - this.heading;
         diff = Math.atan2(Math.sin(diff), Math.cos(diff));
         const maxTurn = cfg.turnRate * dt;
@@ -86,11 +92,24 @@ class FlyingSkull extends Enemy {
       this.velocityY = Math.sin(this.heading) * cfg.swoopSpeed;
       if (Math.abs(this.velocityX) > 1) this.facing = Math.sign(this.velocityX);
       if (Math.random() < dt * 30) game.effects.ember(this.centerX - this.velocityX * 0.05, this.centerY - this.velocityY * 0.05);
-      if (this.stateTime >= cfg.swoopTime) this._setState('RECOVER');
-    } else if (this.state === 'RECOVER') {
-      const hx = this.homeX - this.x, hy = this.homeY - this.y, hd = Math.hypot(hx, hy);
-      if (hd < 6) {
+      if (this.stateTime >= cfg.swoopTime) this._ascend();
+    } else if (this.state === 'ASCEND') {
+      // 原地往上升回原本的高度，到了就開始冷卻
+      this.velocityX = Physics.approach(this.velocityX, 0, 400 * dt);
+      this.velocityY = -cfg.ascendSpeed;
+      if (this.y <= this.homeY) {
+        this.y = this.homeY;
+        this.hoverX = this.x;
         this.cooldown = cfg.cooldown;
+        this._setState('HOVER');
+      }
+    } else if (this.state === 'RETURN') {
+      const hx = this.homeX - this.x, hy = this.homeY - this.y, hd = Math.hypot(hx, hy);
+      if (inRange) {
+        this.hoverX = this.x;               // 回程中玩家又靠近：就地停下準備攻擊
+        this._setState('HOVER');
+      } else if (hd < 6) {
+        this.hoverX = this.homeX;
         this._setState('HOVER');
       } else {
         this.velocityX = hx / hd * cfg.returnSpeed;
@@ -110,9 +129,12 @@ class FlyingSkull extends Enemy {
     if (Math.random() < dt * 4) game.effects.ember(this.centerX + (Math.random() - 0.5) * 14, this.y);
   }
 
-  /** 撞到劍客就收招飛回 */
-  onHitPlayer() {
-    if (this.state === 'SWOOP' || this.state === 'WINDUP') this._setState('RECOVER');
+  _ascend() {
+    this._setState(this.y <= this.homeY ? 'HOVER' : 'ASCEND');
+    if (this.state === 'HOVER') {
+      this.hoverX = this.x;
+      this.cooldown = SKULL_CONFIG.cooldown;
+    }
   }
 
   _setState(s) {
@@ -120,17 +142,18 @@ class FlyingSkull extends Enemy {
     this.stateTime = 0;
   }
 
-  /** 飛行移動：只在撞到實心圖塊時停下（俯衝中撞牆或撞地就收招） */
+  /** 飛行移動：俯衝時撞到實心圖塊就停下並升回高度；其他狀態直接穿過地形，不會卡住 */
   _fly(dt, map) {
     const nx = this.x + this.velocityX * dt, ny = this.y + this.velocityY * dt;
-    const T = map.tileSize;
-    const solid = (x, y) => map.isSolidAt(Math.floor(x / T), Math.floor(y / T));
-    const s = this.width;
-    const hit = solid(nx, ny) || solid(nx + s, ny) || solid(nx, ny + s) || solid(nx + s, ny + s);
-    if (hit && this.state !== 'RECOVER') {
-      this.velocityX = this.velocityY = 0;
-      if (this.state === 'SWOOP') this._setState('RECOVER');
-      return;
+    if (this.state === 'SWOOP') {
+      const T = map.tileSize;
+      const solid = (x, y) => map.isSolidAt(Math.floor(x / T), Math.floor(y / T));
+      const s = this.width;
+      if (solid(nx, ny) || solid(nx + s, ny) || solid(nx, ny + s) || solid(nx + s, ny + s)) {
+        this.velocityX = this.velocityY = 0;
+        this._ascend();
+        return;
+      }
     }
     this.x = nx;
     this.y = ny;
