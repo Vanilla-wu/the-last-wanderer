@@ -307,6 +307,49 @@ function playerPose(name, f, n) {
   }
 }
 
+/* ---------------- 三連擊：pixelfx 的姿勢轉套到劍客身上 ---------------- */
+
+/**
+ * pixelfx 的姿勢只說「手、腳該在哪裡、刀的角度、蹲低與前傾」（data/swordcombo.js），
+ * 單位是它約 38px 高的假人，腳底為原點、y 往上為負。劍客約 80px，所以座標放大 COMBO_SCALE 倍；
+ * 刀的角度兩邊定義相同（畫面座標，0 = 朝前）。腳用兩段式 IK 算出大腿與小腿的角度。
+ * 刀與手舉起時會超出一般的畫格，所以三連擊另用較大的 COMBO_FRAME。
+ */
+const COMBO_SCALE = 2;
+const COMBO_FRAME = { width: 240, height: 160, cx: 120, feet: 150 };
+const LEG = 17;   // 與 drawLeg 的大腿、小腿長度相同
+
+function legTo(dx, dy) {
+  const d = Math.min(Math.hypot(dx, dy), LEG * 2 - 0.01);
+  const bend = Math.acos(d / (LEG * 2)), dir = Math.atan2(dx, dy);
+  return { a: dir + bend, b: bend * 2 };
+}
+
+function comboPose(q, f, n) {
+  const K = COMBO_SCALE;
+  const ox = q.x * K, oy = q.y * K;                  // 整個人的位移（pixelfx 的 x、y）
+  const hx = ox, hy = q.crouch * K + oy;
+  const lean = Math.max(-24, Math.min(24, q.lean * K));
+  const sinT = lean / 26, cosT = Math.sqrt(1 - sinT * sinT);
+  const hipY = -34 + hy, shX = hx + lean, shY = hipY - 26 * cosT;
+  // 腳離地的高度：pixelfx 站姿的腳踝在 -4，沒寫就是踩在地上
+  const lift = (v) => (v ? Math.min(0, v + 4) * K : 0);
+  return {
+    hx, hy, lean, torsoDY: 0, headDX: 0, headDY: 0, headTilt: 0,
+    hand: [ox + q.fx * K - (shX + 2), oy + q.fy * K - (shY + 4)],
+    handB: [ox + q.bx * K - (shX - 2), oy + q.by * K - (shY + 5)],
+    twoHand: !!q.two, sword: q.sa, dropSword: false,
+    legF: legTo(ox + q.ffx * K - (hx + 2), oy + lift(q.ffy) - hipY),
+    legB: legTo(ox + q.fbx * K - (hx - 2), oy + lift(q.fby) - hipY),
+    scarfT: f / n, scarfLift: 0.4, scarfLen: 1.3
+  };
+}
+
+const COMBO_STROKES = (window.SWORD_COMBO && window.SWORD_COMBO.strokes) || [];
+const COMBO_SHEET_ANIMS = Object.fromEntries(COMBO_STROKES.map((s, i) => [
+  'combo' + (i + 1), { row: i, frames: s.frames.length, fps: window.SWORD_COMBO.fps, loop: false }
+]));
+
 function drawLeg(g, hx, hy, leg, back) {
   const L = 17;
   const kx = hx + Math.sin(leg.a) * L, ky = hy + Math.cos(leg.a) * L;
@@ -408,8 +451,8 @@ function drawScarfTails(g, x, y, p) {
   }
 }
 
-function drawWanderer(g, p) {
-  const hipX = PLAYER_FRAME.cx + p.hx, hipY = PLAYER_FRAME.feet - 34 + p.hy;
+function drawWanderer(g, p, frame = PLAYER_FRAME) {
+  const hipX = frame.cx + p.hx, hipY = frame.feet - 34 + p.hy;
   const lean = Math.max(-24, Math.min(24, p.lean));
   const sinT = lean / 26, cosT = Math.sqrt(1 - sinT * sinT);
   const shX = hipX + lean, shY = hipY - 26 * cosT + p.torsoDY;
@@ -418,8 +461,8 @@ function drawWanderer(g, p) {
   const handX = shX + 2 + p.hand[0], handY = shY + 4 + p.hand[1];
 
   if (p.dropSword) {
-    Px.line(g, hipX - 34, PLAYER_FRAME.feet - 1, hipX - 2, PLAYER_FRAME.feet - 1, 2, PAL.blade);
-    Px.rect(g, hipX - 40, PLAYER_FRAME.feet - 2, 6, 3, PAL.hiltWrap);
+    Px.line(g, hipX - 34, frame.feet - 1, hipX - 2, frame.feet - 1, 2, PAL.blade);
+    Px.rect(g, hipX - 40, frame.feet - 2, 6, 3, PAL.hiltWrap);
   }
 
   drawScarfTails(g, shX - 3, shY - 1, p);
@@ -984,6 +1027,14 @@ const Sprites = {
       animations: PLAYER_ANIMS,
       drawFrame: (g, name, f, n) => drawWanderer(g, playerPose(name, f, n))
     });
+
+    // 三連擊（pixelfx 的動作）：較大的畫格，Animator 會自動切換到這張 sheet
+    this.playerCombo = COMBO_STROKES.length ? buildSheet({
+      frameWidth: COMBO_FRAME.width, frameHeight: COMBO_FRAME.height,
+      anchorX: COMBO_FRAME.cx, anchorY: COMBO_FRAME.feet,
+      animations: COMBO_SHEET_ANIMS,
+      drawFrame: (g, name, f, n) => drawWanderer(g, comboPose(COMBO_STROKES[+name.slice(5) - 1].frames[f], f, n), COMBO_FRAME)
+    }) : null;
 
     this.spirit = buildSheet({
       frameWidth: 48, frameHeight: 48, anchorX: 24, anchorY: 46,

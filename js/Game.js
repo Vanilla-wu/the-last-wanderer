@@ -269,7 +269,7 @@ class Game {
 
   /**
    * 刀光：pixelfx 的刀光，origin 是弧線中心，對齊到劍客胸前。
-   * 第一擊斜劈、第二擊上下翻轉成反手撩、收尾是十字斬；上劈 / 下劈把刀光轉 90 度。
+   * 三連擊依序是斜劈、交叉雙斬、雙手重劈；上劈 / 下劈把刀光轉 90 度。
    * 圖檔還沒載入時退回程式畫的刀光。
    */
   playSlash(p, kind) {
@@ -277,9 +277,10 @@ class Game {
     const arc = [-6, -26];   // 弧線中心再往前一點，刀光掃到身前
     const opts = { flipX, origin: arc, follow: p, fromHit: true };
     let fx = null;
+    // 三連擊沿用 pixelfx 三連擊的刀光：斜劈、交叉雙斬、雙手重劈（重劈的錨點在腳底，劈進前方的地面）
     if (kind === 'side') fx = this.fx.play('slash', p.centerX, p.y + 40, opts);
-    else if (kind === 'side2') fx = this.fx.play('slash', p.centerX, p.y + 40, { ...opts, flipY: true });
-    else if (kind === 'side3') fx = this.fx.play('cross', p.centerX, p.y + 42, { ...opts, origin: [4, -24] });
+    else if (kind === 'side2') fx = this.fx.play('cross', p.centerX + p.facing * 6, p.y + 42, { ...opts, origin: [4, -24] });
+    else if (kind === 'side3') fx = this.fx.play('cleave', p.centerX + p.facing * 18, p.bottom, { ...opts, origin: null });
     else if (kind === 'up') fx = this.fx.play('slash', p.centerX, p.y + 24, { ...opts, rot: -Math.PI / 2 });
     else if (kind === 'down') fx = this.fx.play('slash', p.centerX, p.y + 58, { ...opts, rot: Math.PI / 2, flipY: true });
     if (!fx) this.effects.slash(p, kind);

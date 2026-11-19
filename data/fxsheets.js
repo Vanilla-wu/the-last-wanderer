@@ -55,6 +55,28 @@ window.FX_SHEETS = {
       }
     ]
   },
+  "cleave": {
+    "fps": 30,
+    "frames": 58,
+    "frameSize": [
+      208,
+      116
+    ],
+    "columns": 6,
+    "pivot": [
+      68,
+      96
+    ],
+    "source": "melee/heavy-cleave",
+    "hits": [
+      {
+        "t": 0.335,
+        "freeze": 0.2,
+        "shake": 0.34,
+        "amp": 3
+      }
+    ]
+  },
   "hitSpark": {
     "fps": 30,
     "frames": 16,

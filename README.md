@@ -84,7 +84,9 @@ python serve.py
     - D：從斷崖躍過十格深谷（落點就在妖怪身邊），再越過尖刺坑抵達鳥居
 - **表現**：程序化像素美術、多層視差背景、寒霧、飄雪、粒子、Web Audio 合成音效與風聲
 - **pixelfx 特效**（[patch-gg/pixelfx](https://github.com/patch-gg/pixelfx)，MIT）：
-  - 刀光：三段連斬依序是斜劈、反手撩（上下翻轉）、冰藍色十字斬；上劈、下劈把刀光轉 90 度
+  - 三連擊的動作取自 pixelfx 的 `moves/sword-combo`：斜劈、交叉雙斬、雙手重劈。姿勢由 `node tools/sample_combo.mjs <pixelfx 資料夾>` 取樣到 `data/swordcombo.js`，在 `js/art/Sprites.js` 的 `comboPose()` 放大 2 倍轉套到劍客身上（另用 240×160 的畫格）
+  - 節奏維持原本的連段：`Player.js` 的 `COMBO_TIMING` 把 pixelfx 時間軸上的「開始、命中、結束」對到遊戲的「開始、判定開始、收刀」
+  - 刀光：三連擊用對應的 pixelfx 刀光（斜劈、冰藍色交叉雙斬、冰藍色雙手重劈）；上劈、下劈把斜劈的刀光轉 90 度
   - 命中：一般命中是打擊火花，連段收尾與螺旋斬最後一斬是爆擊火花；一般攻擊砍到冰壁是格擋火花
   - 傷害數字（-1、-2）從敵人頭上彈出；1.2 秒內連續命中兩次以上，畫面右上顯示金色連擊數（最多 x20）
   - 刀光從 act 資料的命中時間開始播，命中停頓時定格在最亮的那一格；圖檔還沒載入時自動退回程式畫的刀光
@@ -101,6 +103,8 @@ data/parkour01.js 跑酷挑戰的賽道資料（格式相同）
 data/fxsheets.js  pixelfx 特效的 sprite sheet 資料（由 tools/build_fx.py 產生）
 assets/fx/      pixelfx 特效圖檔，以及 pixelfx 的 LICENSE 與 NOTICE
 tools/build_fx.py 從 pixelfx 匯出特效
+tools/sample_combo.mjs 取樣 pixelfx 三連擊的姿勢
+data/swordcombo.js 三連擊的姿勢資料（由 tools/sample_combo.mjs 產生）
 js/
   main.js, Game.js
   core/         GameLoop, InputManager, GameState, Storage

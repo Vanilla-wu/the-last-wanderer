@@ -20,8 +20,9 @@ GOLD = ["#1a1205", "#3d2a0a", "#70501a", "#b08a2f", "#f5c84c", "#ffe3a8", "#fff4
 
 # 遊戲中的名稱 -> (pixelfx id, 選項[, fps])
 SHEETS = {
-    'slash': ('melee/sword-slash', {}),                    # 斜劈；上下翻轉成反手撩，轉 90 度成上劈 / 下劈
-    'cross': ('melee/double-slash', {'palette': ICE}),     # 連段收尾的十字斬（換成冰藍色）
+    'slash': ('melee/sword-slash', {}),                    # 三連擊第一擊：斜劈；轉 90 度成上劈 / 下劈
+    'cross': ('melee/double-slash', {'palette': ICE}),     # 三連擊第二擊：交叉雙斬（換成冰藍色）
+    'cleave': ('melee/heavy-cleave', {'palette': ICE}),    # 三連擊第三擊：雙手重劈（換成冰藍色）
     'hitSpark': ('impacts/hit-spark', {}),
     'crit': ('impacts/crit-hit', {}),                      # 收尾、螺旋斬最後一斬
     'parry': ('impacts/parry', {}),                        # 一般攻擊砍到冰壁

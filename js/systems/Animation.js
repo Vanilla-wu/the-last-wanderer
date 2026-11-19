@@ -32,9 +32,11 @@ class SpriteSheet {
   }
 }
 
+/** 可以掛多張 sheet：play() 時從有這段動畫的那張 sheet 播放（例如三連擊用較大的畫格） */
 class Animator {
-  constructor(sheet) {
+  constructor(sheet, ...moreSheets) {
     this.sheet = sheet;
+    this.sheets = [sheet, ...moreSheets];
     this.name = '';
     this.current = null;
     this.frame = 0;
@@ -45,8 +47,10 @@ class Animator {
 
   play(name, restart = false) {
     if (this.name === name && !restart) return;
-    const anim = this.sheet.animations[name];
-    if (!anim) return;
+    const sheet = this.sheets.find((s) => s.animations[name]);
+    if (!sheet) return;
+    const anim = sheet.animations[name];
+    this.sheet = sheet;
     this.name = name;
     this.current = anim;
     this.frame = 0;

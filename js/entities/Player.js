@@ -62,7 +62,14 @@ const PLAYER_CONFIG = Object.freeze({
 });
 
 const ATTACK_ANIMS = { side: 'attack', up: 'attackUp', down: 'attackDown' };
-const COMBO_ANIMS = ['attack', 'attack2', 'attack3'];
+// 三連擊的動作取自 pixelfx 的 moves/sword-combo（Sprites.playerCombo），節奏維持原本的連段：
+// 把 pixelfx 時間軸上的「開始、命中、結束」對到遊戲裡的「開始、判定開始、收刀」，中間線性壓縮
+const COMBO_ANIMS = ['combo1', 'combo2', 'combo3'];
+const COMBO_TIMING = [
+  { game: [0, 0.06, 0.3], src: [0, 0.67, 0.91] },             // 斜劈（命中對到刀揮到前下方的那一格）
+  { game: [0, 0.06, 0.13, 0.3], src: [0, 0.2, 0.3, 0.38] },   // 交叉雙斬（兩刀）
+  { game: [0, 0.13, 0.39], src: [0, 0.64, 1.6] }              // 雙手重劈
+];
 const COMBO_SLASHES = ['side', 'side2', 'side3'];
 const COMBO_SOUNDS = ['slash', 'slash2', 'slash3'];
 
@@ -93,7 +100,7 @@ class Player extends Entity {
     this.attackBuffer = 0;
     this.pogoUsed = false;
 
-    this.animator = new Animator(Sprites.player);
+    this.animator = new Animator(Sprites.player, ...(Sprites.playerCombo ? [Sprites.playerCombo] : []));
     this.state = PLAYER_STATES.IDLE;
     this.stateTime = 0;
     this.animator.play('idle');
@@ -207,7 +214,21 @@ class Player extends Entity {
     if (this.scarf) this._updateScarfTip(dt, beforeX, beforeY);
 
     if (!ACTION_STATES.has(this.state)) this.setState(this._locomotionState(move));
+    this._syncComboFrame();
     this._updateSafePoint(map);
+  }
+
+  /** 三連擊：依 COMBO_TIMING 把遊戲時間換算成 pixelfx 時間軸上的那一格 */
+  _syncComboFrame() {
+    const a = this.animator;
+    if (this.state !== PLAYER_STATES.ATTACK || this.comboStep < 1 || !a.name.startsWith('combo')) return;
+    const { game, src } = COMBO_TIMING[this.comboStep - 1];
+    const t = Math.min(this.stateTime, game[game.length - 1]);
+    let i = 0;
+    while (i < game.length - 2 && t > game[i + 1]) i++;
+    const u = (t - game[i]) / (game[i + 1] - game[i]);
+    const srcT = src[i] + (src[i + 1] - src[i]) * Math.min(1, u);
+    a.frame = Math.min(a.current.frames - 1, Math.floor(srcT * a.current.fps));
   }
 
   _updateControl(dt, move, input, game, locked) {
