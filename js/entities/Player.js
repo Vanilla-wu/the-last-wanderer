@@ -37,7 +37,6 @@ const PLAYER_CONFIG = Object.freeze({
   finisherDuration: 0.44, finisherWindow: [0.09, 0.21], finisherCooldown: 0.55,   // 重劈後多停一下，壓低身子收勢
   finisherDamage: 2, finisherBox: { width: 84, height: 64, offsetY: 6 },
   finisherStep: [0.07, 0.15], finisherStepSpeed: 230, finisherKnockback: 1.7,
-  comboKnockback: 0.5,     // 前兩擊的擊退減半，敵人留在下一擊的範圍內
   attackBox: { width: 64, height: 60, offsetY: 8 },
   // 上劈 / 下劈：判定時間與判定框（相對於角色中心與頭頂）
   attackWindows: { side: [0.04, 0.16], up: [0.06, 0.2], down: [0.04, 0.24] },
