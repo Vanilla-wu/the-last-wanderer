@@ -27,14 +27,16 @@ const PLAYER_CONFIG = Object.freeze({
   coyoteTime: 0.1, jumpBufferTime: 0.12,
   maxHp: 3,
   attackDuration: 0.3,
-  attackCooldown: 0.3, attackDamage: 1, attackMoveFactor: 0.35,
+  attackCooldown: 0.3, attackDamage: 1,
+  attackMoveFactor: 0.1,     // 地面上攻擊時的移動速度（原本 0.35）
+  attackAirMoveFactor: 0.5,  // 空中攻擊時的移動速度：仍保留一些空中控制，下劈彈跳才跳得過去
   // 橫斬連段：揮刀中再按 J 預約下一擊，最多三段；不再按就在該段結束時收刀
   comboDuration: 0.24,     // 第一、二擊的長度（上劈、下劈仍是 attackDuration）
   comboInputStart: 0.05,   // 揮刀多久後開始接受下一擊的輸入
   comboChainTime: 0.3,     // 連按時在這個時間點接上下一擊（比單按的收刀晚，預約了就停在出刀姿勢等著接）
   comboWindow: 0.3,        // 收刀後仍可接續下一擊的時間
   attackBufferTime: 0.25,  // J 的輸入緩衝（命中停頓期間按下也不會漏掉）
-  finisherDuration: 0.44, finisherWindow: [0.09, 0.21], finisherCooldown: 0.55,   // 重劈後多停一下，壓低身子收勢
+  finisherDuration: 0.62, finisherWindow: [0.09, 0.21], finisherCooldown: 0.72,   // 重劈後停久一點，壓低身子再慢慢起身
   finisherDamage: 2, finisherBox: { width: 84, height: 64, offsetY: 6 },
   finisherStep: [0.07, 0.15], finisherStepSpeed: 230, finisherKnockback: 1.7,
   attackBox: { width: 64, height: 60, offsetY: 8 },
@@ -70,7 +72,7 @@ const COMBO_ANIMS = ['combo1', 'combo2', 'combo3'];
 const COMBO_TIMING = [
   { game: [0, 0.04, 0.24], src: [0.25, 0.67, 0.82] },              // 斜劈：刀在頭後 → 揮到前下方
   { game: [0, 0.04, 0.09, 0.24], src: [0.08, 0.2, 0.3, 0.36] },    // 交叉雙斬（兩刀）
-  { game: [0, 0.09, 0.44], src: [0.4, 0.64, 1.15] }                // 雙手重劈：高舉 → 劈進地面 → 壓低收勢
+  { game: [0, 0.09, 0.62], src: [0.4, 0.64, 1.45] }                // 雙手重劈：高舉 → 劈進地面 → 壓低收勢 → 起身
 ];
 const COMBO_SLASHES = ['side', 'side2', 'side3'];
 const COMBO_SOUNDS = ['slash', 'slash2', 'slash3'];
@@ -241,7 +243,7 @@ class Player extends Entity {
 
     if (move !== 0 && !attacking) this.facing = move;
 
-    const maxSpeed = cfg.speed * (attacking && this.isGrounded ? cfg.attackMoveFactor : 1);
+    const maxSpeed = cfg.speed * (!attacking ? 1 : this.isGrounded ? cfg.attackMoveFactor : cfg.attackAirMoveFactor);
     const accel = this.isGrounded
       ? (move ? cfg.groundAccel : cfg.groundDecel)
       : (move ? cfg.airAccel : cfg.airDecel);

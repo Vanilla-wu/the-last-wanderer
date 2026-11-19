@@ -85,7 +85,7 @@ python serve.py
 - **表現**：程序化像素美術、多層視差背景、寒霧、飄雪、粒子、Web Audio 合成音效與風聲
 - **pixelfx 特效**（[patch-gg/pixelfx](https://github.com/patch-gg/pixelfx)，MIT）：
   - 三連擊的動作取自 pixelfx 的 `moves/sword-combo`：斜劈、交叉雙斬、雙手重劈。姿勢由 `node tools/sample_combo.mjs <pixelfx 資料夾>` 取樣到 `data/swordcombo.js`，在 `js/art/Sprites.js` 的 `comboPose()` 放大 2 倍轉套到劍客身上（另用 240×160 的畫格）
-  - 節奏：`Player.js` 的 `COMBO_TIMING` 只取 pixelfx 時間軸上「刀舉到最高 → 出刀後停住」那一段，壓縮到遊戲的「開始、判定開始、收刀」；單按一擊 0.24 秒收刀，連按時 0.3 秒接下一擊，收尾重劈 0.44 秒；劍客原地揮刀不前後位移
+  - 節奏：`Player.js` 的 `COMBO_TIMING` 只取 pixelfx 時間軸上「刀舉到最高 → 出刀後停住」那一段，壓縮到遊戲的「開始、判定開始、收刀」；單按一擊 0.24 秒收刀，連按時 0.3 秒接下一擊，收尾重劈 0.62 秒（劈完壓低身子再慢慢起身）；劍客原地揮刀不前後位移；攻擊時地面移動速度降到 10%、空中 50%
   - 刀光：三連擊用對應的 pixelfx 刀光（斜劈、冰藍色交叉雙斬、冰藍色雙手重劈）；上劈、下劈把斜劈的刀光轉 90 度
   - 雙手重劈用的是本專案修改過的 `tools/pixelfx/melee/clean-cleave.js`：由 pixelfx 的 heavy-cleave 拿掉碎裂地板（裂痕、焦痕、地面震波、碎石、揚塵），匯出時自動帶入
   - 命中停頓：一般命中 0.13 秒、收尾重劈 0.15 秒
