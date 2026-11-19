@@ -145,7 +145,7 @@ class AfterimageVision {
       }
       for (let i = n % 6; i < n; i += 6) {
         const s = trail[i];
-        e.animator.sheet.drawFrame(ctx, s.row, s.frame, s.x - cam.x, s.y - cam.y, s.flip, 'ghost', k * 0.4 * (i + 1) / n);
+        e.drawGhost(ctx, cam, s, k * 0.4 * (i + 1) / n);
       }
     }
   }

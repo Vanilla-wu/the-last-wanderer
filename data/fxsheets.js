@@ -163,6 +163,20 @@ window.FX_SHEETS = {
     ],
     "source": "impacts/parry"
   },
+  "skull": {
+    "fps": 15,
+    "frames": 36,
+    "frameSize": [
+      96,
+      132
+    ],
+    "columns": 8,
+    "pivot": [
+      48,
+      120
+    ],
+    "source": "critters/flying-skull"
+  },
   "dmg1": {
     "fps": 30,
     "frames": 33,

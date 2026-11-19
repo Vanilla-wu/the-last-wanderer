@@ -204,6 +204,15 @@ class AudioSystem {
         this._tone({ type: 'sawtooth', freq: 320, to: 70, dur: 0.3, vol: 0.06 });
         this._tone({ type: 'sine', freq: 1200, to: 2400, dur: 0.2, vol: 0.04 });
         break;
+      case 'skullWindup':
+        // 骷髏蓄勢：低沉的喀喀聲與火焰轟起
+        [0, 0.08, 0.16].forEach((d) => this._tone({ type: 'square', freq: 140, to: 110, dur: 0.05, vol: 0.05, delay: d }));
+        this._noise({ type: 'lowpass', freq: 700, to: 1600, dur: 0.4, vol: 0.12 });
+        break;
+      case 'skullSwoop':
+        this._noise({ type: 'bandpass', freq: 600, to: 2400, q: 1, dur: 0.35, vol: 0.18 });
+        this._tone({ type: 'sawtooth', freq: 220, to: 90, dur: 0.3, vol: 0.04 });
+        break;
       case 'spiral':
         // 三聲旋風呼嘯，對應三次斬擊
         [0, 0.14, 0.28].forEach((d, i) => {

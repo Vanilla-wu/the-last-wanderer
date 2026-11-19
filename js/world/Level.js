@@ -86,6 +86,11 @@ class Level {
       { range, hp },
       T
     ));
+    // 火焰骷髏：[欄, 列] 是飄浮的位置（骷髏中心）
+    for (const [tx, row] of this.data.skulls || []) {
+      const s = SKULL_CONFIG.size;
+      this.enemies.push(new FlyingSkull(tx * T + (T - s) / 2, row * T + (T - s) / 2));
+    }
     this.totalEnemies = this.enemies.length;
   }
 

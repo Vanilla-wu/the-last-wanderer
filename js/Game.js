@@ -30,7 +30,8 @@ class Game {
     this.camera = new Camera(this.width, this.height);
     this.background = new Background(this.width, this.height);
     this.effects = new Effects();
-    this.fx = new FxSheets();      // pixelfx 的刀光、打擊火花、傷害數字與連擊數
+    this.fx = new FxSheets();      // pixelfx 的刀光、打擊火花、傷害數字、連擊數與火焰骷髏
+    FxSheets.shared = this.fx;
     this.comboHits = 0;
     this.lastHitTime = -99;
     this.vision = new AfterimageVision();

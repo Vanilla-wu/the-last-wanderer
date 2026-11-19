@@ -35,6 +35,7 @@ class Enemy extends Entity {
   }
 
   get isDead() { return this.state === 'DEAD'; }
+  get harmless() { return false; }   // true 時不造成接觸傷害（例如火焰骷髏飛回原位時）
 
   update(dt, map, game) {
     this.stateTime += dt;
@@ -122,6 +123,11 @@ class Enemy extends Entity {
 
   getHitbox() {
     return { x: this.x + 2, y: this.y + 4, width: this.width - 4, height: this.height - 4 };
+  }
+
+  /** 殘影視界中畫出軌跡上的一個殘影（s 是 trail 裡的一筆） */
+  drawGhost(ctx, cam, s, alpha) {
+    this.animator.sheet.drawFrame(ctx, s.row, s.frame, s.x - cam.x, s.y - cam.y, s.flip, 'ghost', alpha);
   }
 
   render(ctx, cam) {

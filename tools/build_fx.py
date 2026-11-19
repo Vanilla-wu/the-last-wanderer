@@ -29,6 +29,7 @@ SHEETS = {
     'thrust': ('melee/thrust', {'palette': ICE}),          # 衝刺斬：疾衝時的突刺光束（換成冰藍色）
     'crit': ('impacts/crit-hit', {}),                      # 收尾、旋風斬最後一斬、衝刺斬
     'parry': ('impacts/parry', {}),                        # 一般攻擊砍到冰壁
+    'skull': ('critters/flying-skull', {'floor': False}, 15),   # 敵人：火焰骷髏（循環動畫，不畫地面光影；15 fps 檔案小一點）
 }
 for n in (1, 2):
     SHEETS[f'dmg{n}'] = ('ui/damage-number', {'text': f'-{n}'})

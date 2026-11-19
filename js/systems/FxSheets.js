@@ -4,6 +4,7 @@
  * 每個特效以 pivot（錨點）為準；origin 是錨點往外的偏移，代表「要對齊到 (x, y) 的那一點」，
  * 翻轉與旋轉都繞著這一點進行。例如刀光的 origin 是弧線中心，翻轉後仍落在劍客胸前。
  * layer：'world' 隨鏡頭移動並在命中停頓時凍結；'screen' 固定在畫面上（連擊數）。
+ * 循環的 sheet（例如火焰骷髏）也可以用 drawFrame() 逐格畫，FxSheets.shared 是遊戲用的那一份。
  */
 const FX_ROOT = 'assets/fx/';
 
@@ -11,6 +12,7 @@ class FxSheets {
   constructor(sheets = window.FX_SHEETS || {}) {
     this.sheets = sheets;
     this.images = {};
+    this.variants = {};   // 受擊白閃（flash）、殘影（ghost）的著色版，第一次用到時才產生
     for (const name of Object.keys(sheets)) {
       const img = new Image();
       img.src = FX_ROOT + name + '.png';
@@ -41,6 +43,25 @@ class FxSheets {
     };
     this.active.push(fx);
     return fx;
+  }
+
+  /** 直接畫 sheet 的第 frame 格，錨點對齊 (x, y)（已扣掉鏡頭）；variant：null、'flash' 或 'ghost' */
+  drawFrame(ctx, name, frame, x, y, { flipX = false, variant = null, alpha = 1 } = {}) {
+    const s = this.sheets[name];
+    let img = this.images[name];
+    if (variant) {
+      const key = name + ':' + variant;
+      if (!this.variants[key]) this.variants[key] = tintCanvas(img, variant === 'flash' ? '#ffffff' : '#6fc8ff');
+      img = this.variants[key];
+    }
+    const [w, h] = s.frameSize;
+    const f = frame % s.frames;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(Math.round(x), Math.round(y));
+    if (flipX) ctx.scale(-1, 1);
+    ctx.drawImage(img, (f % s.columns) * w, Math.floor(f / s.columns) * h, w, h, -s.pivot[0], -s.pivot[1], w, h);
+    ctx.restore();
   }
 
   update(dt, layer) {
