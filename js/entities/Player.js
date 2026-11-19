@@ -802,13 +802,18 @@ class Player extends Entity {
     this.safeY = this.y;
   }
 
-  takeDamage(amount, sourceX) {
+  /** knockback：false 時只扣血與給無敵時間，不擊退也不打斷目前的動作（例如火焰骷髏穿身而過） */
+  takeDamage(amount, sourceX, { knockback = true } = {}) {
     const S = PLAYER_STATES;
     if (this.state === S.DEATH || this.isInvulnerable()) return false;
     this.hp = Math.max(0, this.hp - amount);
     const dir = this.centerX < sourceX ? -1 : 1;
     if (this.hp <= 0) {
       this.die(dir);
+      return true;
+    }
+    if (!knockback) {
+      this.invulnTimer = this.cfg.invulnerableTime;
       return true;
     }
     if (this.scarf) this.scarf.phase = 'retract';

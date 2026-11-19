@@ -73,7 +73,8 @@ const Combat = {
     const hurtbox = player.getHurtbox();
     for (const enemy of level.enemies) {
       if (enemy.isDead || enemy.harmless) continue;
-      if (Collision.aabb(hurtbox, enemy.getHitbox()) && player.takeDamage(ENEMY_CONFIG.contactDamage, enemy.centerX)) {
+      if (Collision.aabb(hurtbox, enemy.getHitbox()) &&
+          player.takeDamage(ENEMY_CONFIG.contactDamage, enemy.centerX, { knockback: !enemy.noKnockback })) {
         game.onPlayerDamaged();
         break;
       }

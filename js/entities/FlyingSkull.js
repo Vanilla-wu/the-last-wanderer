@@ -5,6 +5,7 @@
  * WINDUP  原地抖動、閃白，提示即將俯衝
  * SWOOP   朝玩家俯衝並穿過身體（碰到就受傷，不會因此停下）；弱追蹤：只在前 homingTime 秒、劍客還在前方時轉向
  * ASCEND  俯衝結束（或撞到地形、被打中）後原地往上升回原本的高度，冷卻 cooldown 秒再出手——不會先飛回出生點
+ * 碰到劍客只扣血、給無敵時間，不擊退也不打斷劍客的動作
  * RETURN  玩家離開攻擊判定區時，才飛回出生點
  * 任何狀態碰到都會造成接觸傷害；不受重力、不走地形碰撞（只在俯衝撞到實心圖塊時停下）；受擊、死亡沿用 Enemy。
  */
@@ -17,7 +18,7 @@ const SKULL_CONFIG = Object.freeze({
   swoopTime: 1.3,
   ascendSpeed: 130,                   // 攻擊後升回原本高度的速度
   returnSpeed: 110,                   // 飛回出生點的速度
-  cooldown: 2,                        // 升回原本高度後，隔多久再發起攻擊
+  cooldown: 0.7,                      // 升回原本高度後，隔多久再發起攻擊
   bob: 6,                             // 飄浮時上下晃動的幅度
   spriteLift: 40                      // pixelfx 圖的骷髏在錨點（地面）上方 40px
 });
@@ -128,6 +129,9 @@ class FlyingSkull extends Enemy {
     }
     if (Math.random() < dt * 4) game.effects.ember(this.centerX + (Math.random() - 0.5) * 14, this.y);
   }
+
+  /** 穿身而過：碰到劍客只扣血，不擊退 */
+  get noKnockback() { return true; }
 
   _ascend() {
     this._setState(this.y <= this.homeY ? 'HOVER' : 'ASCEND');
