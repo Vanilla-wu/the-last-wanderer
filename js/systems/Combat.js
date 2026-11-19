@@ -37,7 +37,7 @@ const Combat = {
         if (player.isFinisher()) {
           // 連段收尾：擊退更遠、停頓更久
           enemy.velocityX *= player.cfg.finisherKnockback;
-          game.hitstop = Math.max(game.hitstop, 0.11);
+          game.hitstop = Math.max(game.hitstop, 0.15);
           game.camera.shake(5, 0.2);
         }
         if (downward) player.pogo(game);
