@@ -28,8 +28,8 @@ const PLAYER_CONFIG = Object.freeze({
   maxHp: 3,
   attackDuration: 0.3,
   attackCooldown: 0.3, attackDamage: 1,
-  attackMoveFactor: 0.1,     // 地面上攻擊時的移動速度（原本 0.35）
-  attackAirMoveFactor: 0.5,  // 空中攻擊時的移動速度：仍保留一些空中控制，下劈彈跳才跳得過去
+  attackMoveFactor: 0.1,     // 橫斬三連擊時地面上的移動速度（上劈、下劈不減速）
+  attackAirMoveFactor: 0.5,  // 橫斬三連擊時空中的移動速度
   // 橫斬連段：揮刀中再按 J 預約下一擊，最多三段；不再按就在該段結束時收刀
   comboDuration: 0.24,     // 第一、二擊的長度（上劈、下劈仍是 attackDuration）
   comboInputStart: 0.05,   // 揮刀多久後開始接受下一擊的輸入
@@ -243,7 +243,9 @@ class Player extends Entity {
 
     if (move !== 0 && !attacking) this.facing = move;
 
-    const maxSpeed = cfg.speed * (!attacking ? 1 : this.isGrounded ? cfg.attackMoveFactor : cfg.attackAirMoveFactor);
+    // 橫斬三連擊時大幅減速；上劈、下劈不減速（跳躍中劈擊、下劈彈跳都要保留移動）
+    const slowed = attacking && this.attackDir === 'side';
+    const maxSpeed = cfg.speed * (!slowed ? 1 : this.isGrounded ? cfg.attackMoveFactor : cfg.attackAirMoveFactor);
     const accel = this.isGrounded
       ? (move ? cfg.groundAccel : cfg.groundDecel)
       : (move ? cfg.airAccel : cfg.airDecel);
