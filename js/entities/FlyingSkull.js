@@ -4,10 +4,11 @@
  * HOVER   在目前的位置上下飄浮（一開始是出生點）；冷卻結束、玩家在攻擊判定區（detectRange）內就蓄勢
  * WINDUP  原地抖動、閃白，提示即將俯衝
  * SWOOP   朝玩家俯衝並穿過身體（碰到就受傷，不會因此停下）；弱追蹤：只在前 homingTime 秒、劍客還在前方時轉向
- * ASCEND  俯衝結束（或撞到地形、被打中）後原地往上升回原本的高度，冷卻 cooldown 秒再出手——不會先飛回出生點
- * 碰到劍客只扣血、給無敵時間，不擊退也不打斷劍客的動作
+ * ASCEND  俯衝結束（或撞到地形、被打中）後往上升回原本的高度（順勢往左右偏一點），冷卻後再出手——不會先飛回出生點
  * RETURN  玩家離開攻擊判定區時，才飛回出生點
- * 任何狀態碰到都會造成接觸傷害；不受重力、不走地形碰撞（只在俯衝撞到實心圖塊時停下）；受擊、死亡沿用 Enemy。
+ * 任何狀態碰到都會造成接觸傷害，但只扣血、給無敵時間，不擊退也不打斷劍客的動作；
+ * 不受重力、不走地形碰撞（只在俯衝撞到實心圖塊時停下）；受擊、死亡沿用 Enemy。
+ * 隨機性（random）：每次攻擊的冷卻、蓄勢時間、俯衝速度與瞄準點都會浮動，飄浮時也會左右遊移，讓節奏不好背。
  */
 const SKULL_CONFIG = Object.freeze({
   size: 26, hp: 2,
@@ -19,7 +20,15 @@ const SKULL_CONFIG = Object.freeze({
   ascendSpeed: 130,                   // 攻擊後升回原本高度的速度
   returnSpeed: 110,                   // 飛回出生點的速度
   cooldown: 0.7,                      // 升回原本高度後，隔多久再發起攻擊
-  bob: 6,                             // 飄浮時上下晃動的幅度
+  bob: 6,                             // 飄浮時上下晃動的幅度（每隻 0.7–1.3 倍）
+  random: {
+    cooldown: [0.6, 1.5],             // 冷卻的倍率：0.42–1.05 秒
+    windup: [0.75, 1.3],              // 蓄勢的倍率：0.34–0.59 秒（最短仍看得出要攻擊）
+    speed: [0.9, 1.1],                // 俯衝速度的倍率：171–209 px/s
+    aimX: 24, aimY: [-24, 12],        // 瞄準點相對劍客中心的偏移（px）
+    ascendDrift: 40,                  // 升回高度時左右偏移的最大速度（px/s）
+    wander: 16                        // 飄浮時左右遊移的幅度（px）
+  },
   spriteLift: 40                      // pixelfx 圖的骷髏在錨點（地面）上方 40px
 });
 
@@ -34,6 +43,17 @@ class FlyingSkull extends Enemy {
     this.cooldown = 0;
     this.heading = 0;
     this.t = Math.random() * 10;
+    // 每隻骷髏自己的飄浮節奏
+    this.bobScale = FlyingSkull.rand([0.7, 1.3]);
+    this.wanderFreq = FlyingSkull.rand([0.5, 0.9]);
+    this.windupTime = SKULL_CONFIG.windup;
+    this.speed = SKULL_CONFIG.swoopSpeed;
+    this.drift = 0;
+  }
+
+  /** [最小, 最大] 之間的亂數 */
+  static rand([a, b]) {
+    return a + Math.random() * (b - a);
   }
 
   update(dt, map, game) {
@@ -62,21 +82,27 @@ class FlyingSkull extends Enemy {
       this.velocityY = Physics.approach(this.velocityY, 0, 500 * dt);
       if (this.stateTime >= this.hurtTime) this._ascend();
     } else if (this.state === 'HOVER') {
-      const tx = this.hoverX, ty = this.homeY + Math.sin(this.t * 2.2) * cfg.bob;
+      const tx = this.hoverX + Math.sin(this.t * this.wanderFreq) * cfg.random.wander;
+      const ty = this.homeY + Math.sin(this.t * 2.2) * cfg.bob * this.bobScale;
       this.velocityX = (tx - this.x) * 3;
       this.velocityY = (ty - this.y) * 3;
       if (Math.abs(dx) > 4) this.facing = Math.sign(dx);
       if (!inRange && Math.abs(this.hoverX - this.homeX) > 2) {
         this._setState('RETURN');           // 玩家走遠了才回出生點
       } else if (inRange && this.cooldown <= 0) {
+        this.windupTime = cfg.windup * FlyingSkull.rand(cfg.random.windup);
         this._setState('WINDUP');
         game.audio.play('skullWindup');
       }
     } else if (this.state === 'WINDUP') {
       this.velocityX = this.velocityY = 0;
       if (Math.abs(dx) > 4) this.facing = Math.sign(dx);
-      if (this.stateTime >= cfg.windup) {
-        this.heading = Math.atan2(dy, dx);
+      if (this.stateTime >= this.windupTime) {
+        // 瞄準點偏一點、速度也浮動
+        const r = cfg.random;
+        const ax = dx + (Math.random() * 2 - 1) * r.aimX, ay = dy + FlyingSkull.rand(r.aimY);
+        this.heading = Math.atan2(ay, ax);
+        this.speed = cfg.swoopSpeed * FlyingSkull.rand(r.speed);
         this._setState('SWOOP');
         game.audio.play('skullSwoop');
       }
@@ -89,19 +115,19 @@ class FlyingSkull extends Enemy {
         const maxTurn = cfg.turnRate * dt;
         this.heading += Math.max(-maxTurn, Math.min(maxTurn, diff));
       }
-      this.velocityX = Math.cos(this.heading) * cfg.swoopSpeed;
-      this.velocityY = Math.sin(this.heading) * cfg.swoopSpeed;
+      this.velocityX = Math.cos(this.heading) * this.speed;
+      this.velocityY = Math.sin(this.heading) * this.speed;
       if (Math.abs(this.velocityX) > 1) this.facing = Math.sign(this.velocityX);
       if (Math.random() < dt * 30) game.effects.ember(this.centerX - this.velocityX * 0.05, this.centerY - this.velocityY * 0.05);
       if (this.stateTime >= cfg.swoopTime) this._ascend();
     } else if (this.state === 'ASCEND') {
-      // 原地往上升回原本的高度，到了就開始冷卻
-      this.velocityX = Physics.approach(this.velocityX, 0, 400 * dt);
+      // 往上升回原本的高度（順勢往左右偏一點），到了就開始冷卻
+      this.velocityX = Physics.approach(this.velocityX, this.drift, 400 * dt);
       this.velocityY = -cfg.ascendSpeed;
       if (this.y <= this.homeY) {
         this.y = this.homeY;
         this.hoverX = this.x;
-        this.cooldown = cfg.cooldown;
+        this.cooldown = cfg.cooldown * FlyingSkull.rand(cfg.random.cooldown);
         this._setState('HOVER');
       }
     } else if (this.state === 'RETURN') {
@@ -134,10 +160,12 @@ class FlyingSkull extends Enemy {
   get noKnockback() { return true; }
 
   _ascend() {
+    const cfg = SKULL_CONFIG;
+    this.drift = (Math.random() * 2 - 1) * cfg.random.ascendDrift;
     this._setState(this.y <= this.homeY ? 'HOVER' : 'ASCEND');
     if (this.state === 'HOVER') {
       this.hoverX = this.x;
-      this.cooldown = SKULL_CONFIG.cooldown;
+      this.cooldown = cfg.cooldown * FlyingSkull.rand(cfg.random.cooldown);
     }
   }
 
