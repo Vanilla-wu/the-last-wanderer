@@ -91,6 +91,50 @@ window.FX_SHEETS = {
     ],
     "source": "impacts/hit-spark"
   },
+  "spin": {
+    "fps": 30,
+    "frames": 25,
+    "frameSize": [
+      208,
+      104
+    ],
+    "columns": 4,
+    "pivot": [
+      104,
+      84
+    ],
+    "source": "melee/spin-slash",
+    "hits": [
+      {
+        "t": 0.17,
+        "freeze": 0.12,
+        "shake": 0.16,
+        "amp": 2
+      }
+    ]
+  },
+  "thrust": {
+    "fps": 30,
+    "frames": 24,
+    "frameSize": [
+      196,
+      76
+    ],
+    "columns": 4,
+    "pivot": [
+      34,
+      62
+    ],
+    "source": "melee/thrust",
+    "hits": [
+      {
+        "t": 0.07,
+        "freeze": 0.12,
+        "shake": 0.14,
+        "amp": 2
+      }
+    ]
+  },
   "crit": {
     "fps": 30,
     "frames": 28,

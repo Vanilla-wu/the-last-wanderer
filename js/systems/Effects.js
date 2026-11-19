@@ -103,7 +103,7 @@ class Effects {
     this.slashes.push({ follow: player, facing: player.facing, direction, t: 0, life: direction === 'side3' ? 0.22 : 0.17 });
   }
 
-  /** 螺旋斬：環繞劍客、由下往上捲起的旋風刀光 */
+  /** 旋風斬：環繞劍客、由下往上捲起的旋風刀光（pixelfx 圖檔還沒載入時的備用） */
   spiral(player, life) {
     this.slashes.push({ follow: player, facing: player.facing, direction: 'spiral', t: 0, life });
   }

@@ -25,7 +25,9 @@ SHEETS = {
     'cross': ('melee/double-slash', {'palette': ICE}),     # 三連擊第二擊：交叉雙斬（換成冰藍色）
     'cleave': ('melee/clean-cleave', {'palette': ICE}),    # 三連擊第三擊：雙手重劈（拿掉碎裂地板的版本，換成冰藍色）
     'hitSpark': ('impacts/hit-spark', {}),
-    'crit': ('impacts/crit-hit', {}),                      # 收尾、螺旋斬最後一斬
+    'spin': ('melee/spin-slash', {'radius': 58}),          # 旋風斬（螺旋斬的外觀）：繞腰間一圈的刀光環，原本就是冰藍色
+    'thrust': ('melee/thrust', {'palette': ICE}),          # 衝刺斬：疾衝時的突刺光束（換成冰藍色）
+    'crit': ('impacts/crit-hit', {}),                      # 收尾、旋風斬最後一斬、衝刺斬
     'parry': ('impacts/parry', {}),                        # 一般攻擊砍到冰壁
 }
 for n in (1, 2):

@@ -13,7 +13,7 @@ const PLAYER_STATES = Object.freeze({
 const ANIM_FOR_STATE = {
   IDLE: 'idle', RUN: 'run', JUMP: 'jump', FALL: 'fall',
   ATTACK: 'attack', HURT: 'hurt', DODGE: 'dodge', DEATH: 'death',
-  CHARGE: 'charge', CHARGE_SLASH: 'chargeSlash', SPIRAL: 'spiral', SCARF: 'scarf'
+  CHARGE: 'charge', CHARGE_SLASH: 'dashSlash', SPIRAL: 'spin', SCARF: 'scarf'
 };
 
 // 這些狀態自行決定何時結束，不會被移動狀態（IDLE / RUN / JUMP / FALL）覆蓋
@@ -49,14 +49,18 @@ const PLAYER_CONFIG = Object.freeze({
   hurtDuration: 0.35, invulnerableTime: 1.1, knockbackX: 230, knockbackY: 330,
   // 衝刺（K，需取得疾風之履）：期間無敵，空中每次滯空限一次
   dodgeDuration: 0.2, dodgeSpeed: 430, dodgeCooldown: 0.6,
-  // 蓄力斬：揮刀後持續按住 J 進入蓄力，蓄滿後放開斬出劍氣並向前突進
+  // 蓄力：揮刀後持續按住 J 進入蓄力，蓄滿後放開使出衝刺斬（按住 W 則為旋風斬）
   chargeTime: 0.5, chargeMoveFactor: 0.3,
-  chargeSlashDuration: 0.34, lungeTime: 0.11, lungeSpeed: 360, lungeDecel: 2400,
+  // 衝刺斬（蓄滿後放開 J）：動作取自 pixelfx 的 moves/dash-strike——壓低身子、疾衝穿過敵人、劈下。
+  // 原作衝 116 單位（放大後約 7 格）會讓衝刺斬直接飛越深谷，這裡只衝約 4 格，也不跳回原位
+  dashSlashWindup: 0.06, dashSlashDash: 0.14, dashSlashDistance: 128,
+  dashSlashCut: 0.22, dashSlashCutLength: 0.08, dashSlashDuration: 0.5,
   chargeSlashDamage: 2, chargeSlashBox: { width: 72, height: 60, offsetY: 8 },
-  waveSpeed: 520, waveLife: 0.45, waveDamage: 2,
-  // 螺旋斬：蓄滿後按住 W 再放開 J，原地旋身騰起，連斬周圍三次（最後一擊把敵人甩開）
+  dashSlashReach: 40,      // 疾衝時身前多少範圍內的敵人會被斬到
+  // 旋風斬：蓄滿後按住 W 再放開 J，原地旋身騰起，連斬周圍三次（最後一擊把敵人甩開）。動作與刀光取自 pixelfx 的 melee/spin-slash
   spiralDuration: 0.5, spiralHits: [0.06, 0.2, 0.34], spiralHitLength: 0.08,
-  spiralDamage: 1, spiralBox: { width: 124, height: 120, below: 40 },   // below：判定往腳下延伸，騰起後仍打得到地上的敵人 spiralFinalKnockback: 1.6,
+  spiralDamage: 1, spiralFinalKnockback: 1.6,
+  spiralBox: { width: 124, height: 120, below: 40 },   // below：判定往腳下延伸，騰起後仍打得到地上的敵人
   spiralLift: 220, spiralAirLift: 150, spiralGravity: 0.35, spiralMoveFactor: 0.55,
   // 風縛（I，需取得蒼風之結）：圍巾延伸抓住風鈴、鈴緒或妖怪
   scarfRange: 250, scarfTipSpeed: 1500, scarfRetractSpeed: 1800, scarfCooldown: 0.3,
@@ -76,6 +80,8 @@ const COMBO_TIMING = [
 ];
 const COMBO_SLASHES = ['side', 'side2', 'side3'];
 const COMBO_SOUNDS = ['slash', 'slash2', 'slash3'];
+// 衝刺斬：遊戲時間（開始、衝出、衝完、劈下、收刀）對到 dash-strike 時間軸（壓低、衝出、衝完、劈下、收勢）
+const DASH_SLASH_TIMING = { game: [0, 0.06, 0.2, 0.22, 0.5], src: [0, 0.16, 0.3, 0.38, 0.91] };
 
 class Player extends Entity {
   /** progress：撿到的能力與生命上限（由 Game 保存，死亡重來也不會失去） */
@@ -92,8 +98,8 @@ class Player extends Entity {
     this.releasedTimer = 0;
     this.scarfBuffer = 0;       // I 的輸入緩衝：揮刀中提早按下也不會漏掉
     this.airDashAvailable = true;   // 每次離地只能空中衝刺一次
-    this.airSpiralLift = true;      // 螺旋斬的騰起每次離地只有一次，避免連續螺旋斬一路飛高
-    this.spiralHit = 0;             // 螺旋斬目前是第幾斬（0 = 尚未出手）
+    this.airSpiralLift = true;      // 旋風斬的騰起每次離地只有一次，避免連續旋風斬一路飛高
+    this.spiralHit = 0;             // 旋風斬目前是第幾斬（0 = 尚未出手）
     this.maxHp = progress.maxHp;
     this.hp = this.maxHp;
     this.airJumpsLeft = 0;
@@ -115,13 +121,13 @@ class Player extends Entity {
     this.attackCooldown = 0;
     this.dodgeCooldown = 0;
     this.invulnTimer = 0;
-    this.graceTimer = 0;       // 下劈彈起、蓄力斬突進時的短暫保護（不閃爍）
+    this.graceTimer = 0;       // 下劈彈起、衝刺斬疾衝時的短暫保護（不閃爍）
     this.dropTimer = 0;
     this.afterimageTimer = 0;
     this.deathTimer = 0;
     this.slashSpawned = false;
     this.charged = false;
-    this.waveSpawned = false;
+    this.dashPhase = null;     // 衝刺斬：windup 壓低 / dash 疾衝
     this.hitTargets = new Set();
     this.controlsLocked = false;
 
@@ -225,8 +231,11 @@ class Player extends Entity {
   /** 三連擊：依 COMBO_TIMING 把遊戲時間換算成 pixelfx 時間軸上的那一格 */
   _syncComboFrame() {
     const a = this.animator;
-    if (this.state !== PLAYER_STATES.ATTACK || this.comboStep < 1 || !a.name.startsWith('combo')) return;
-    const { game, src } = COMBO_TIMING[this.comboStep - 1];
+    let timing = null;
+    if (this.state === PLAYER_STATES.ATTACK && this.comboStep > 0 && a.name.startsWith('combo')) timing = COMBO_TIMING[this.comboStep - 1];
+    else if (this.state === PLAYER_STATES.CHARGE_SLASH && a.name === 'dashSlash') timing = DASH_SLASH_TIMING;
+    if (!timing) return;
+    const { game, src } = timing;
     const t = Math.min(this.stateTime, game[game.length - 1]);
     let i = 0;
     while (i < game.length - 2 && t > game[i + 1]) i++;
@@ -560,7 +569,7 @@ class Player extends Entity {
     game.effects.dust(this.centerX, this.bottom, this.facing);
   }
 
-  /* ---------------------------- 蓄力斬 ---------------------------- */
+  /* ---------------------------- 蓄力 ---------------------------- */
 
   _startCharge(game) {
     this.setState(PLAYER_STATES.CHARGE);
@@ -579,7 +588,7 @@ class Player extends Entity {
     const handX = this.centerX - this.facing * 10, handY = this.y + 56;
     this.spiralReady = this.charged && input.isDown('up');
     if (this.spiralReady && Math.random() < dt * 20) {
-      // 按住 W：風在腳邊打轉，提示放開會變成螺旋斬
+      // 按住 W：風在腳邊打轉，提示放開會變成旋風斬
       const a = Math.random() * Math.PI * 2;
       game.effects.sparkle(this.centerX + Math.cos(a) * 30, this.bottom - 6 - Math.random() * 60, ['#ffffff', '#d8f4ff', '#9fe0ff']);
     }
@@ -610,49 +619,75 @@ class Player extends Entity {
     }
   }
 
+  /* ---------------------------- 衝刺斬 ---------------------------- */
+
   _releaseChargeSlash(game) {
     const cfg = this.cfg;
     this.setState(PLAYER_STATES.CHARGE_SLASH);
     this.attackDir = 'side';
     this.hitTargets.clear();
-    this.waveSpawned = false;
+    this.dashPhase = 'windup';
+    this.slashSpawned = false;
     this.afterimageTimer = 0;
-    this.graceTimer = cfg.lungeTime;
-    this.velocityX = this.facing * cfg.lungeSpeed;
     this.charged = false;
-    game.audio.play('wave');
-    game.camera.shake(3, 0.18);
-    game.effects.dust(this.centerX, this.bottom, this.facing);
+    this.isJumping = false;
+  }
+
+  /** 疾衝中與劈下時都在衝刺斬裡 */
+  _dashing() {
+    const cfg = this.cfg;
+    return this.stateTime >= cfg.dashSlashWindup && this.stateTime < cfg.dashSlashWindup + cfg.dashSlashDash;
   }
 
   _updateChargeSlash(dt, move, game) {
     const cfg = this.cfg;
-    if (this.stateTime < cfg.lungeTime) {
-      this.velocityX = this.facing * cfg.lungeSpeed;
+    const dashEnd = cfg.dashSlashWindup + cfg.dashSlashDash;
+    if (this.stateTime < cfg.dashSlashWindup) {
+      // 壓低身子，刀收到身後
+      this.velocityX = Physics.approach(this.velocityX, 0, cfg.groundDecel * dt);
+      if (this.isGrounded) Physics.applyGravity(this, dt);
+      else this.velocityY = Math.min(this.velocityY, 0);
+    } else if (this.stateTime < dashEnd) {
+      if (this.dashPhase === 'windup') {
+        // 衝出：穿過敵人（期間無敵），空中衝刺也保持高度
+        this.dashPhase = 'dash';
+        this.graceTimer = cfg.dashSlashDash + 0.05;
+        game.audio.play('wave');
+        game.camera.shake(3, 0.18);
+        game.effects.dust(this.centerX, this.bottom, this.facing);
+        game.fx.play('thrust', this.centerX, this.bottom - 25, { flipX: this.facing < 0, follow: this });
+      }
+      this.velocityX = this.facing * cfg.dashSlashDistance / cfg.dashSlashDash;
       if (this.isGrounded) Physics.applyGravity(this, dt);
       else this.velocityY = 0;
       this.afterimageTimer -= dt;
       if (this.afterimageTimer <= 0) {
         game.effects.afterimage(this.animator, this.centerX, this.bottom, this.facing < 0);
-        this.afterimageTimer = 0.035;
+        this.afterimageTimer = 0.03;
       }
     } else {
-      this.velocityX = Physics.approach(this.velocityX, 0, cfg.lungeDecel * dt);
+      if (this.dashPhase === 'dash') {
+        this.dashPhase = 'cut';
+        this.velocityX *= 0.15;   // 衝到底就煞住，不會再滑出去
+      }
+      this.velocityX = Physics.approach(this.velocityX, 0, cfg.groundDecel * 2 * dt);
       Physics.applyGravity(this, dt, this.velocityY > 0 ? cfg.fallGravityMultiplier : 1);
     }
 
-    if (!this.waveSpawned && this.stateTime >= 0.05) {
-      this.waveSpawned = true;
-      game.spawnSwordWave(this);
+    // 劈下：衝到底的那一刀
+    if (!this.slashSpawned && this.stateTime >= cfg.dashSlashCut) {
+      this.slashSpawned = true;
+      game.playSlash(this, 'side');
+      game.audio.play('slash3');
     }
 
-    if (this.stateTime >= cfg.chargeSlashDuration) {
+    if (this.stateTime >= cfg.dashSlashDuration) {
       this.attackCooldown = cfg.attackCooldown;
       this.setState(this._locomotionState(move));
     }
   }
 
-  /* ---------------------------- 螺旋斬 ---------------------------- */
+  /* ---------------------------- 旋風斬 ---------------------------- */
 
   _releaseSpiral(game) {
     const cfg = this.cfg;
@@ -673,7 +708,15 @@ class Player extends Entity {
     game.audio.play('spiral');
     game.camera.shake(3, 0.2);
     game.effects.dust(this.centerX, this.bottom);
-    game.effects.spiral(this, cfg.spiralDuration);
+    if (!game.fx.ready('spin')) game.effects.spiral(this, cfg.spiralDuration);   // 圖檔還沒載入時退回程式畫的旋風
+  }
+
+  /** 旋風斬的動作（pixelfx 的 spin-slash）：蓄勢、轉身四個朝向反覆、最後收勢 */
+  _spinFrame() {
+    const t = this.stateTime, end = this.cfg.spiralDuration;
+    if (t < 0.05) return 0;
+    if (t >= end - 0.08) return 5;
+    return 1 + (Math.floor((t - 0.05) / 0.035) % 4);
   }
 
   _updateSpiral(dt, move, game) {
@@ -687,7 +730,10 @@ class Player extends Entity {
     if (next !== undefined && this.stateTime >= next) {
       this.spiralHit++;
       this.hitTargets.clear();
+      // 每一斬都轉出一圈刀光環（spin-slash 的環在 0.17 秒閉合，加快一點對上每圈 0.14 秒）
+      game.fx.play('spin', this.centerX, this.bottom - 26, { flipX: this.facing < 0, follow: this, speed: 1.2 });
     }
+    if (this.animator.name === 'spin') this.animator.frame = this._spinFrame();
     if (Math.random() < dt * 40) {
       const a = Math.random() * Math.PI * 2;
       game.effects.sparkle(this.centerX + Math.cos(a) * 52, this.y + 20 + Math.random() * 60, ['#ffffff', '#d8f4ff', '#9fe0ff']);
@@ -700,12 +746,12 @@ class Player extends Entity {
     }
   }
 
-  /** 螺旋斬的最後一斬：把敵人甩開 */
+  /** 旋風斬的最後一斬：把敵人甩開 */
   isSpiralFinal() {
     return this.state === PLAYER_STATES.SPIRAL && this.spiralHit === this.cfg.spiralHits.length;
   }
 
-  /** 蓄力後放出的斬擊（蓄力斬、螺旋斬）才能斬開冰壁 */
+  /** 蓄力後放出的斬擊（衝刺斬、旋風斬）才能斬開冰壁 */
   isChargedAttack() {
     return this.state === PLAYER_STATES.CHARGE_SLASH || this.state === PLAYER_STATES.SPIRAL;
   }
@@ -824,8 +870,17 @@ class Player extends Entity {
 
   getAttackHitbox() {
     if (this.state === PLAYER_STATES.CHARGE_SLASH) {
-      if (this.stateTime > this.cfg.lungeTime + 0.03) return null;
-      const box = this.cfg.chargeSlashBox;
+      const cfg = this.cfg;
+      if (this._dashing()) {
+        // 疾衝中：身體加上身前一段，衝過去的敵人都會被斬到
+        const reach = cfg.dashSlashReach;
+        return {
+          x: this.facing > 0 ? this.x : this.x - reach, y: this.y + cfg.chargeSlashBox.offsetY,
+          width: this.width + reach, height: cfg.chargeSlashBox.height
+        };
+      }
+      if (this.stateTime < cfg.dashSlashCut || this.stateTime > cfg.dashSlashCut + cfg.dashSlashCutLength) return null;
+      const box = cfg.chargeSlashBox;
       return {
         x: this.facing > 0 ? this.x + this.width - 6 : this.x - box.width + 6,
         y: this.y + box.offsetY, width: box.width, height: box.height

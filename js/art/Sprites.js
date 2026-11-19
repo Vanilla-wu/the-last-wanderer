@@ -143,11 +143,9 @@ const PLAYER_ANIMS = {
   attackUp: { row: 8, frames: 5, fps: 1 / 0.06, loop: false },
   attackDown: { row: 9, frames: 5, fps: 1 / 0.06, loop: false },
   charge: { row: 10, frames: 2, fps: 6, loop: true },
-  chargeSlash: { row: 11, frames: 4, fps: 1 / 0.08, loop: false },
   attack2: { row: 12, frames: 5, fps: 1 / 0.06, loop: false },
   attack3: { row: 13, frames: 6, fps: 1 / 0.065, loop: false },
-  scarf: { row: 14, frames: 2, fps: 10, loop: true },
-  spiral: { row: 15, frames: 4, fps: 1 / 0.045, loop: true }
+  scarf: { row: 14, frames: 2, fps: 10, loop: true }
 };
 
 function playerPose(name, f, n) {
@@ -249,34 +247,6 @@ function playerPose(name, f, n) {
         hand: [-6, 14], sword: 2.9, handB: [-2, 12], scarfLift: 0.6, scarfT: f * 0.5
       };
 
-    case 'chargeSlash': {
-      // 蓄力斬：向前突進，刀身平舉斬出
-      const frames = [
-        { lean: 10, hy: 6, hand: [16, 2], sword: 0.0 },
-        { lean: 10, hy: 6, hand: [17, 5], sword: 0.12 },
-        { lean: 7, hy: 5, hand: [14, 11], sword: 0.55 },
-        { lean: 4, hy: 3, hand: [9, 14], sword: 0.7 }
-      ];
-      return {
-        ...base, legF: { a: 1.0, b: 0.6 }, legB: { a: -0.95, b: 0.2 },
-        twoHand: f < 2, scarfLift: 0.1, scarfLen: 1.45, ...frames[f]
-      };
-    }
-
-    case 'spiral': {
-      // 螺旋斬：收腿旋身，刀依序掃過身前、正面、身後、背面
-      const frames = [
-        { lean: 3, hand: [17, 4], sword: 0.0 },
-        { lean: 0, hand: [6, 10], sword: 1.45, handB: [-6, 4] },
-        { lean: -3, hand: [-14, 4], sword: 3.14, handB: [8, 6] },
-        { lean: 0, hand: [0, 0], sword: -1.6, handB: [-8, 6] }
-      ];
-      return {
-        ...base, hy: -2, legF: { a: 0.7, b: 1.2 }, legB: { a: -0.05, b: 0.95 },
-        scarfLift: f % 2 ? -0.6 : 1.0, scarfLen: 1.3, scarfT: f / n, ...frames[f]
-      };
-    }
-
     case 'hurt':
       return { ...base, lean: -5, headDX: -2, legF: { a: 0.3, b: 0.2 }, legB: { a: -0.35, b: 0.15 }, hand: [-3, 12], sword: 2.3, handB: [-8, 4], scarfLift: 0.8 };
 
@@ -307,13 +277,15 @@ function playerPose(name, f, n) {
   }
 }
 
-/* ---------------- 三連擊：pixelfx 的姿勢轉套到劍客身上 ---------------- */
+/* ---------------- pixelfx 招式：姿勢轉套到劍客身上 ---------------- */
 
 /**
- * pixelfx 的姿勢只說「手、腳該在哪裡、刀的角度、蹲低與前傾」（data/swordcombo.js），
+ * 三連擊、旋風斬、衝刺斬的動作取自 pixelfx（data/swordmoves.js）。
+ * pixelfx 的姿勢只說「手、腳該在哪裡、刀的角度、蹲低、前傾與轉身」，
  * 單位是它約 38px 高的假人，腳底為原點、y 往上為負。劍客約 80px，所以座標放大 COMBO_SCALE 倍；
  * 刀的角度兩邊定義相同（畫面座標，0 = 朝前）。腳用兩段式 IK 算出大腿與小腿的角度。
- * 刀與手舉起時會超出一般的畫格，所以三連擊另用較大的 COMBO_FRAME。
+ * 刀與手舉起時會超出一般的畫格，所以這些招式另用較大的 COMBO_FRAME。
+ * 劍客是 2D 骨架沒有轉身的軸：轉身（yaw）以前後方向的壓縮來表現，轉到背面時整張圖左右鏡像。
  */
 const COMBO_SCALE = 2;
 const COMBO_FRAME = { width: 240, height: 160, cx: 120, feet: 150 };
@@ -326,30 +298,44 @@ function legTo(dx, dy) {
 }
 
 function comboPose(q, f, n) {
-  const K = COMBO_SCALE;
+  const yaw = q.yaw || 0, S = Math.max(0.3, Math.abs(Math.cos(yaw)));   // 側身時前後方向縮短
+  const K = COMBO_SCALE, KX = K * S;
   // pixelfx 的 x 是整個人前後移動（蓄勢時後退、出刀時前衝），劍客原地揮刀，只保留上下（小跳）
   const ox = 0, oy = q.y * K;
   const hx = ox, hy = q.crouch * K + oy;
-  const lean = Math.max(-24, Math.min(24, q.lean * K));
+  const lean = Math.max(-24, Math.min(24, q.lean * KX));
   const sinT = lean / 26, cosT = Math.sqrt(1 - sinT * sinT);
   const hipY = -34 + hy, shX = hx + lean, shY = hipY - 26 * cosT;
   // 腳離地的高度：pixelfx 站姿的腳踝在 -4，沒寫就是踩在地上
   const lift = (v) => (v ? Math.min(0, v + 4) * K : 0);
   return {
     hx, hy, lean, torsoDY: 0, headDX: 0, headDY: 0, headTilt: 0,
-    hand: [ox + q.fx * K - (shX + 2), oy + q.fy * K - (shY + 4)],
-    handB: [ox + q.bx * K - (shX - 2), oy + q.by * K - (shY + 5)],
-    twoHand: !!q.two, sword: q.sa, dropSword: false,
-    legF: legTo(ox + q.ffx * K - (hx + 2), oy + lift(q.ffy) - hipY),
-    legB: legTo(ox + q.fbx * K - (hx - 2), oy + lift(q.fby) - hipY),
-    scarfT: f / n, scarfLift: 0.4, scarfLen: 1.3
+    hand: [ox + q.fx * KX - (shX + 2), oy + q.fy * K - (shY + 4)],
+    handB: [ox + q.bx * KX - (shX - 2), oy + q.by * K - (shY + 5)],
+    twoHand: !!q.two, dropSword: false,
+    // 刀的方向也跟著轉身壓縮前後分量
+    sword: Math.atan2(Math.sin(q.sa), Math.cos(q.sa) * S),
+    legF: legTo(ox + q.ffx * KX - (hx + 2), oy + lift(q.ffy) - hipY),
+    legB: legTo(ox + q.fbx * KX - (hx - 2), oy + lift(q.fby) - hipY),
+    scarfT: f / n, scarfLift: 0.4, scarfLen: 1.3,
+    mirror: Math.cos(yaw) < -0.01   // 轉到背面
   };
 }
 
-const COMBO_STROKES = (window.SWORD_COMBO && window.SWORD_COMBO.strokes) || [];
-const COMBO_SHEET_ANIMS = Object.fromEntries(COMBO_STROKES.map((s, i) => [
-  'combo' + (i + 1), { row: i, frames: s.frames.length, fps: window.SWORD_COMBO.fps, loop: false }
+const SWORD_MOVE_ANIMS = (window.SWORD_MOVES && window.SWORD_MOVES.anims) || {};
+const COMBO_SHEET_ANIMS = Object.fromEntries(Object.entries(SWORD_MOVE_ANIMS).map(([name, a], i) => [
+  name, { row: i, frames: a.frames.length, fps: window.SWORD_MOVES.fps, loop: false }
 ]));
+
+/** 畫一格 pixelfx 招式；轉到背面時左右鏡像 */
+function drawMoveFrame(g, name, f, n) {
+  const p = comboPose(SWORD_MOVE_ANIMS[name].frames[f], f, n);
+  if (p.mirror) {
+    g.translate(COMBO_FRAME.cx * 2, 0);
+    g.scale(-1, 1);
+  }
+  drawWanderer(g, p, COMBO_FRAME);
+}
 
 function drawLeg(g, hx, hy, leg, back) {
   const L = 17;
@@ -1029,12 +1015,12 @@ const Sprites = {
       drawFrame: (g, name, f, n) => drawWanderer(g, playerPose(name, f, n))
     });
 
-    // 三連擊（pixelfx 的動作）：較大的畫格，Animator 會自動切換到這張 sheet
-    this.playerCombo = COMBO_STROKES.length ? buildSheet({
+    // pixelfx 招式（三連擊、旋風斬、衝刺斬）：較大的畫格，Animator 會自動切換到這張 sheet
+    this.playerCombo = Object.keys(SWORD_MOVE_ANIMS).length ? buildSheet({
       frameWidth: COMBO_FRAME.width, frameHeight: COMBO_FRAME.height,
       anchorX: COMBO_FRAME.cx, anchorY: COMBO_FRAME.feet,
       animations: COMBO_SHEET_ANIMS,
-      drawFrame: (g, name, f, n) => drawWanderer(g, comboPose(COMBO_STROKES[+name.slice(5) - 1].frames[f], f, n), COMBO_FRAME)
+      drawFrame: drawMoveFrame
     }) : null;
 
     this.spirit = buildSheet({

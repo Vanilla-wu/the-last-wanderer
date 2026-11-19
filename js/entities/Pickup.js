@@ -26,8 +26,8 @@ const ABILITIES = {
   chargeSlash: {
     label: '獲得能力',
     name: '居合之卷',
-    desc: '記載古流居合術的殘卷，能將劍意凝為劍氣。',
-    hint: '揮刀後按住 J 蓄力，放開斬出劍氣；蓄滿時按住 W 再放開則為螺旋斬',
+    desc: '記載古流居合術的殘卷，能將劍意凝於一瞬。',
+    hint: '揮刀後按住 J 蓄力，放開使出衝刺斬；蓄滿時按住 W 再放開則為旋風斬',
     colors: ['#ffffff', '#f6efdc', '#bff1ff'],
     glow: 'rgba(255,235,190,',
     apply(progress) { progress.abilities.chargeSlash = true; }

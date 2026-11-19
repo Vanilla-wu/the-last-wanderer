@@ -39,7 +39,6 @@ class Game {
 
     this.level = null;
     this.player = null;
-    this.projectiles = [];
     this.time = 0;
     this.menuScroll = 0;
     this.fogLevel = 0.4;
@@ -157,7 +156,6 @@ class Game {
     this.effects.clear();
     this.fx.clear();
     this.comboHits = 0;
-    this.projectiles = [];
     this.vision.reset();
     this.hud.reset();
     this.hitstop = 0;
@@ -244,7 +242,7 @@ class Game {
 
   /* ---------------------------- 戰鬥事件 ---------------------------- */
 
-  /** heavy：連段收尾、螺旋斬最後一斬，改用較大的爆擊火花 */
+  /** heavy：連段收尾、旋風斬最後一斬、衝刺斬，改用較大的爆擊火花 */
   onEnemyHit(enemy, killed, direction = this.player.facing, { damage = 1, heavy = false } = {}) {
     this.hitstop = 0.13;
     this.camera.shake(killed ? 4 : 2.5, 0.15);
@@ -301,7 +299,7 @@ class Game {
     if (broken && b.drop === 'soul') this.level.drops.push(new SoulDrop(b.x, b.y - 16, direction));
   }
 
-  /** 斬開冰壁（蓄力斬或劍氣） */
+  /** 斬開冰壁（衝刺斬或旋風斬） */
   breakIce(c, r) {
     const cells = this.level.tilemap.breakIceAt(c, r);
     if (!cells.length) return;
@@ -402,7 +400,7 @@ class Game {
     this.audio.play('clink');
     if (this.time - (this.lastIceHint || -99) > 4) {
       this.lastIceHint = this.time;
-      this.hud.toast(this.player.abilities.chargeSlash ? '冰壁堅硬無比 · 試試蓄力斬' : '冰壁堅硬無比 · 一般的斬擊無法破開');
+      this.hud.toast(this.player.abilities.chargeSlash ? '冰壁堅硬無比 · 試試蓄力後的衝刺斬' : '冰壁堅硬無比 · 一般的斬擊無法破開');
     }
   }
 
@@ -548,8 +546,6 @@ class Game {
     }
     this.vision.update(dt, this);
     if (!this.respawning) p.update(dt, this.input, this);
-    for (const wave of this.projectiles) wave.update(dt, level.tilemap, this);
-    this.projectiles = this.projectiles.filter((w) => !w.done);
     level.update(dt, this);
     Combat.update(this);
 
@@ -614,14 +610,6 @@ class Game {
     this.effects.floatText('+1', drop.x, drop.y - 14, '#bff1ff');
   }
 
-  spawnSwordWave(player) {
-    const cfg = player.cfg;
-    const x = player.facing > 0 ? player.x + player.width + 10 : player.x - 10;
-    this.projectiles.push(new SwordWave(x, player.y + 42, player.facing, {
-      speed: cfg.waveSpeed, life: cfg.waveLife, damage: cfg.waveDamage
-    }));
-  }
-
   _collectPickup(pickup) {
     const p = this.player;
     pickup.collected = true;
@@ -664,7 +652,6 @@ class Game {
     for (const e of this.level.enemies) e.render(b, cam);
     if (!(this.respawning && this._fadeAlpha() > 0.95)) this.player.render(b, cam);
     this._renderScarfReticle(b, cam);
-    for (const wave of this.projectiles) wave.render(b, cam);
     this.effects.render(b, cam);
     this.fx.render(b, cam, 'world');
     this.level.renderSecrets(b, cam);

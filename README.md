@@ -26,8 +26,8 @@ python serve.py
 | J | 揮刀（連按最多三段連擊，任何一段後不再按就收刀） |
 | ↑ + J | 上劈 |
 | 空中 ↓ + J | 下劈（命中敵人或尖刺會向上彈起） |
-| 按住 J | 蓄力斬：揮刀後持續按住蓄力，放開時斬出劍氣並向前突進（需先取得「居合之卷」） |
-| 蓄滿後按住 W，放開 J | 螺旋斬：原地旋身騰起，連斬周圍三次（每次 1 傷害，最後一斬把敵人甩開），也能斬開冰壁；旋轉期間不會被接觸傷害 |
+| 按住 J | 蓄力，蓄滿後放開為衝刺斬：壓低身子向前疾衝約 4 格、斬穿途中的妖怪再劈下（傷害 2，疾衝時無敵，能斬開冰壁；需先取得「居合之卷」） |
+| 蓄滿後按住 W，放開 J | 旋風斬：原地旋身騰起，連斬周圍三次（每次 1 傷害，最後一斬把敵人甩開），也能斬開冰壁；旋轉期間不會被接觸傷害 |
 | K | 衝刺：短暫無敵，空中每次滯空限一次（需先取得「疾風之履」） |
 | L | 殘影視界：看見過去的世界 4.5 秒（需先取得「殘影之眼」） |
 | I | 風縛：圍巾抓住風鈴飛過去、拉動鈴緒、把妖怪拉近（需先取得「蒼風之結」） |
@@ -45,7 +45,7 @@ python serve.py
 - **能力道具**（依取得順序；每個能力取得後，緊接著就有一段非它不可的關卡）：
   - 天狗之羽（B 區岩壁頂端，主線必經）→ 二段跳；之後的六格深谷需要二段跳
   - 疾風之履（C 區中段，主線必經）→ 衝刺（K）：期間無敵，可穿越敵人，空中每次滯空限一次；之後的八格深谷與八格尖刺坑需要二段跳 + 空中衝刺
-  - 居合之卷（D 區入口，主線必經）→ 蓄力斬：蓄力 0.5 秒，劍氣傷害 2、可穿透敵人，突進期間短暫無敵；之後的冰壁只有蓄力斬與劍氣斬得開
+  - 居合之卷（D 區入口，主線必經）→ 蓄力 0.5 秒後放開為衝刺斬、按住 W 放開為旋風斬；之後的冰壁只有這兩招斬得開
   - 殘影之眼（D 區後段，主線必經）→ 殘影視界（L）：
     - 畫面由獨眼向外褪色，過去崩塌的木橋與平台重新顯現並可踩踏，也看得見妖怪幾秒前的移動軌跡
     - 持續 4.5 秒，最後 1.2 秒輪廓閃爍提醒，結束後冷卻 1.2 秒；結束時站在過去平台上會直接落下
@@ -59,15 +59,15 @@ python serve.py
     - 之後的十三格風鈴深谷、鈴緒石門、七格高斷崖都需要風縛
   - 魂之器 ×3（選拿，生命上限 +1）：各自藏在需要不同能力的地方
     - C 區土丘上方的高台（二段跳）
-    - D 區岩棚下被冰壁封住的小洞窟（蓄力斬）
+    - D 區岩棚下被冰壁封住的小洞窟（衝刺斬）
     - E 區神社前只存在於過去的高台（殘影視界）
   - 撿到的能力立即存檔，死亡或重來都不會失去
   - 新增能力：在 `js/entities/Pickup.js` 的 `ABILITIES` 加一筆定義，再到關卡資料的 `pickups` 放置
-- **冰壁**：實心的冰塊，一般攻擊會被彈開；蓄力斬或劍氣命中時，相連的冰塊會一起碎裂
+- **冰壁**：實心的冰塊，一般攻擊會被彈開；衝刺斬或旋風斬命中時，相連的冰塊會一起碎裂
 - **石門**：實心，拉動對應的鈴緒後整扇升起消失
 - **隱藏區域**：關卡資料的 `secrets` 平常畫成一般岩壁，旁邊的冰壁被斬開或玩家走進去時才淡出現形
 - **可擊破的物件**：陶罐（一擊碎裂）與雪堆（兩擊打散，第一擊會縮小）
-  - 橫斬、上劈、下劈、劍氣都能擊破；下劈命中也會彈起
+  - 各種斬擊都能擊破；下劈命中也會彈起
   - 部分物件裡藏著魂火，碰到可恢復 1 點生命（生命全滿時會留在原地）
   - 死亡或從檢查點重來時會恢復原狀；新增方式見 `data/level01.js` 的 `breakables` 與 `js/entities/Breakable.js`
 - **角色**：玩家 FSM（IDLE / RUN / JUMP / FALL / ATTACK / HURT / DEATH / DODGE）與 Sprite Sheet 動畫
@@ -84,12 +84,14 @@ python serve.py
     - D：從斷崖躍過十格深谷（落點就在妖怪身邊），再越過尖刺坑抵達鳥居
 - **表現**：程序化像素美術、多層視差背景、寒霧、飄雪、粒子、Web Audio 合成音效與風聲
 - **pixelfx 特效**（[patch-gg/pixelfx](https://github.com/patch-gg/pixelfx)，MIT）：
-  - 三連擊的動作取自 pixelfx 的 `moves/sword-combo`：斜劈、交叉雙斬、雙手重劈。姿勢由 `node tools/sample_combo.mjs <pixelfx 資料夾>` 取樣到 `data/swordcombo.js`，在 `js/art/Sprites.js` 的 `comboPose()` 放大 2 倍轉套到劍客身上（另用 240×160 的畫格）
+  - 招式動作取自 pixelfx：三連擊 `moves/sword-combo`（斜劈、交叉雙斬、雙手重劈）、旋風斬 `melee/spin-slash`、衝刺斬 `moves/dash-strike`。姿勢由 `node tools/sample_moves.mjs <pixelfx 資料夾>` 取樣到 `data/swordmoves.js`，在 `js/art/Sprites.js` 的 `comboPose()` 放大 2 倍轉套到劍客身上（另用 240×160 的畫格）；2D 骨架沒有轉身的軸，旋風斬的轉身以前後壓縮、轉到背面時鏡像來表現
+  - 旋風斬：每一斬轉出一圈 `spin-slash` 的冰藍刀光環
+  - 衝刺斬：疾衝時有殘影與 `thrust` 的突刺光束（換成冰藍色），劈下用斜劈刀光，命中是爆擊火花；原作衝 7 格並跳回原位，這裡只衝約 4 格、不跳回，以免直接飛越深谷
   - 節奏：`Player.js` 的 `COMBO_TIMING` 只取 pixelfx 時間軸上「刀舉到最高 → 出刀後停住」那一段，壓縮到遊戲的「開始、判定開始、收刀」；單按一擊 0.24 秒收刀，連按時 0.3 秒接下一擊，收尾重劈 0.62 秒（劈完壓低身子再慢慢起身）；劍客原地揮刀不前後位移；橫斬三連擊時地面移動速度降到 10%、空中 50%（上劈、下劈不減速）
   - 刀光：三連擊用對應的 pixelfx 刀光（斜劈、冰藍色交叉雙斬、冰藍色雙手重劈）；上劈、下劈把斜劈的刀光轉 90 度
   - 雙手重劈用的是本專案修改過的 `tools/pixelfx/melee/clean-cleave.js`：由 pixelfx 的 heavy-cleave 拿掉碎裂地板（裂痕、焦痕、地面震波、碎石、揚塵），匯出時自動帶入
   - 命中停頓：一般命中 0.13 秒、收尾重劈 0.15 秒
-  - 命中：一般命中是打擊火花，連段收尾與螺旋斬最後一斬是爆擊火花；一般攻擊砍到冰壁是格擋火花
+  - 命中：一般命中是打擊火花，連段收尾、旋風斬最後一斬與衝刺斬是爆擊火花；一般攻擊砍到冰壁是格擋火花
   - 傷害數字（-1、-2）從敵人頭上彈出；1.2 秒內連續命中兩次以上，畫面右上顯示金色連擊數（最多 x20）
   - 刀光從 act 資料的命中時間開始播，命中停頓時定格在最亮的那一格；圖檔還沒載入時自動退回程式畫的刀光
   - 特效素材由 `python tools/build_fx.py <pixelfx 資料夾>` 匯出到 `assets/fx/` 與 `data/fxsheets.js`；換特效或換色改該腳本的 `SHEETS`
@@ -106,13 +108,13 @@ data/fxsheets.js  pixelfx 特效的 sprite sheet 資料（由 tools/build_fx.py 
 assets/fx/      pixelfx 特效圖檔，以及 pixelfx 的 LICENSE 與 NOTICE
 tools/build_fx.py 從 pixelfx 匯出特效
 tools/pixelfx/  本專案修改過的 pixelfx 特效（匯出時複製進 pixelfx）
-tools/sample_combo.mjs 取樣 pixelfx 三連擊的姿勢
-data/swordcombo.js 三連擊的姿勢資料（由 tools/sample_combo.mjs 產生）
+tools/sample_moves.mjs 取樣 pixelfx 招式的姿勢
+data/swordmoves.js 三連擊、旋風斬、衝刺斬的姿勢資料（由 tools/sample_moves.mjs 產生）
 js/
   main.js, Game.js
   core/         GameLoop, InputManager, GameState, Storage
   systems/      Physics, Collision, Animation, Combat, Effects, FxSheets, Audio, Vision
-  entities/     Entity, Player, Enemy, Pickup, Projectile
+  entities/     Entity, Player, Enemy, Pickup, Anchor, Breakable
   world/        Tilemap, Camera, Level, Background
   ui/           HUD, Menu
   art/          Sprites（程序化生成 Sprite Sheet、圖塊與道具）

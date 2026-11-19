@@ -23,10 +23,11 @@ const Combat = {
         const knockDir = player.attackDir === 'side' ? player.facing : (enemy.centerX >= player.centerX ? 1 : -1);
         const killed = enemy.takeHit(player.getAttackDamage(), knockDir, downward);
         game.onEnemyHit(enemy, killed, player.facing, {
-          damage: player.getAttackDamage(), heavy: player.isFinisher() || player.isSpiralFinal()
+          damage: player.getAttackDamage(),
+          heavy: player.isFinisher() || player.isSpiralFinal() || player.state === PLAYER_STATES.CHARGE_SLASH
         });
         if (spinning && !player.isSpiralFinal()) {
-          // 螺旋斬前兩斬：幾乎不擊退，讓敵人留在旋風裡吃下一斬
+          // 旋風斬前兩斬：幾乎不擊退，讓敵人留在旋風裡吃下一斬
           enemy.velocityX *= 0.2;
           enemy.velocityY *= 0.4;
         } else if (player.isSpiralFinal()) {
@@ -51,7 +52,7 @@ const Combat = {
         game.onBreakableHit(b, b.takeHit(player.getAttackDamage()), dir);
         if (downward) player.pogo(game);
       }
-      // 冰壁：蓄力斬能斬開，一般攻擊只會被彈開
+      // 冰壁：衝刺斬、旋風斬能斬開，一般攻擊只會被彈開
       const ice = level.tilemap.iceInRect(attack);
       if (ice.length) {
         if (player.isChargedAttack()) {
@@ -64,23 +65,6 @@ const Combat = {
       if (downward && !player.pogoUsed && Collision.touchesHazard(attack, level.tilemap)) {
         player.pogo(game);
         game.effects.sparks(player.centerX, player.bottom + 20, player.facing);
-      }
-    }
-
-    // 劍氣：可穿透，每個敵人只命中一次
-    for (const wave of game.projectiles) {
-      const box = wave.getHitbox();
-      for (const enemy of level.enemies) {
-        if (enemy.isDead || wave.hitTargets.has(enemy)) continue;
-        if (!Collision.aabb(box, enemy.getHitbox())) continue;
-        wave.hitTargets.add(enemy);
-        const killed = enemy.takeHit(wave.damage, wave.facing);
-        game.onEnemyHit(enemy, killed, wave.facing, { damage: wave.damage });
-      }
-      for (const b of level.breakables) {
-        if (b.broken || wave.hitTargets.has(b) || !Collision.aabb(box, b.getHitbox())) continue;
-        wave.hitTargets.add(b);
-        game.onBreakableHit(b, b.takeHit(wave.damage), wave.facing);
       }
     }
 
