@@ -30,6 +30,9 @@ class Game {
     this.camera = new Camera(this.width, this.height);
     this.background = new Background(this.width, this.height);
     this.effects = new Effects();
+    this.fx = new FxSheets();      // pixelfx 的刀光、打擊火花、傷害數字與連擊數
+    this.comboHits = 0;
+    this.lastHitTime = -99;
     this.vision = new AfterimageVision();
     this.hud = new HUD(this);
     this.menu = new MenuSystem(this);
@@ -152,6 +155,8 @@ class Game {
     this.camera.setBounds(this.level.tilemap.pixelWidth, this.level.tilemap.pixelHeight);
     this.camera.snapTo(this.player);
     this.effects.clear();
+    this.fx.clear();
+    this.comboHits = 0;
     this.projectiles = [];
     this.vision.reset();
     this.hud.reset();
@@ -239,16 +244,45 @@ class Game {
 
   /* ---------------------------- 戰鬥事件 ---------------------------- */
 
-  onEnemyHit(enemy, killed, direction = this.player.facing) {
+  /** heavy：連段收尾、螺旋斬最後一斬，改用較大的爆擊火花 */
+  onEnemyHit(enemy, killed, direction = this.player.facing, { damage = 1, heavy = false } = {}) {
     this.hitstop = killed ? 0.09 : 0.05;
     this.camera.shake(killed ? 4 : 2.5, 0.15);
     const hx = direction > 0 ? enemy.x : enemy.x + enemy.width;
-    this.effects.sparks(hx, enemy.centerY, direction);
+    const spark = this.fx.play(heavy ? 'crit' : 'hitSpark', hx, enemy.centerY, { flipX: direction < 0 });
+    if (!spark) this.effects.sparks(hx, enemy.centerY, direction);
+    this.fx.play('dmg' + Math.min(2, damage), enemy.centerX, enemy.y + 6, { flipX: direction < 0 });
+    this._countCombo();
     this.audio.play(killed ? 'kill' : 'hit');
     if (killed) {
       this.stats.kills++;
       this.effects.spiritDeath(enemy.centerX, enemy.centerY);
     }
+  }
+
+  /** 連擊數：上一次命中後 1.2 秒內再命中就累加，兩次以上顯示在畫面右上 */
+  _countCombo() {
+    this.comboHits = this.time - this.lastHitTime < 1.2 ? this.comboHits + 1 : 1;
+    this.lastHitTime = this.time;
+    if (this.comboHits >= 2) this.fx.play('combo' + Math.min(this.comboHits, 20), 532, 76, { layer: 'screen', tag: 'combo' });
+  }
+
+  /**
+   * 刀光：pixelfx 的刀光，origin 是弧線中心，對齊到劍客胸前。
+   * 第一擊斜劈、第二擊上下翻轉成反手撩、收尾是十字斬；上劈 / 下劈把刀光轉 90 度。
+   * 圖檔還沒載入時退回程式畫的刀光。
+   */
+  playSlash(p, kind) {
+    const flipX = p.facing < 0;
+    const arc = [-6, -26];   // 弧線中心再往前一點，刀光掃到身前
+    const opts = { flipX, origin: arc, follow: p, fromHit: true };
+    let fx = null;
+    if (kind === 'side') fx = this.fx.play('slash', p.centerX, p.y + 40, opts);
+    else if (kind === 'side2') fx = this.fx.play('slash', p.centerX, p.y + 40, { ...opts, flipY: true });
+    else if (kind === 'side3') fx = this.fx.play('cross', p.centerX, p.y + 42, { ...opts, origin: [4, -24] });
+    else if (kind === 'up') fx = this.fx.play('slash', p.centerX, p.y + 24, { ...opts, rot: -Math.PI / 2 });
+    else if (kind === 'down') fx = this.fx.play('slash', p.centerX, p.y + 58, { ...opts, rot: Math.PI / 2, flipY: true });
+    if (!fx) this.effects.slash(p, kind);
   }
 
   /** 陶罐、雪堆被擊中；擊破時可能掉出魂火 */
@@ -362,7 +396,8 @@ class Game {
 
   /** 一般攻擊打在冰壁上：彈出火花，提示需要更強的斬擊 */
   onIceDeflect(box, facing) {
-    this.effects.sparks(facing > 0 ? box.x + box.width - 8 : box.x + 8, box.y + box.height / 2, -facing);
+    const hx = facing > 0 ? box.x + box.width - 8 : box.x + 8, hy = box.y + box.height / 2;
+    if (!this.fx.play('parry', hx, hy, { flipX: facing < 0 })) this.effects.sparks(hx, hy, -facing);
     this.audio.play('clink');
     if (this.time - (this.lastIceHint || -99) > 4) {
       this.lastIceHint = this.time;
@@ -430,6 +465,7 @@ class Game {
     const input = this.input;
     this.time += dt;
     this.state.update(dt);
+    this.fx.update(dt, 'screen');
     this.hurtFlash = Math.max(0, this.hurtFlash - dt);
 
     if (input.wasPressed('mute')) {
@@ -474,6 +510,7 @@ class Game {
         this.player.update(dt, input, this);
         this.level.update(dt, this);
         this.effects.update(dt);
+        this.fx.update(dt, 'world');
         this.camera.follow(this.player, dt);
         if (Math.random() < dt * 4) this.effects.mote(this.player.centerX + (Math.random() - 0.5) * 80, this.player.bottom - Math.random() * 30);
         if (this.state.time > 1.6) this.menu.update(dt, input);
@@ -494,11 +531,13 @@ class Game {
     this._updateFade(dt);
     if (!this.state.is(GameStates.PLAYING)) return;   // 淡出途中可能已進入 GAME_OVER
 
+    // 命中停頓時特效也停在命中那一格，停頓結束才繼續播
     if (this.hitstop > 0) {
       this.hitstop -= dt;
       p.bufferInput(this.input);
       return;
     }
+    this.fx.update(dt, 'world');
 
     this.stats.time += dt;
     this.scarfTarget = p.abilities.scarf && p.canScarf() && p.state !== PLAYER_STATES.DEATH ? this.findScarfTarget(p) : null;
@@ -626,6 +665,7 @@ class Game {
     this._renderScarfReticle(b, cam);
     for (const wave of this.projectiles) wave.render(b, cam);
     this.effects.render(b, cam);
+    this.fx.render(b, cam, 'world');
     this.level.renderSecrets(b, cam);
     this.background.renderForeground(b, cam, this.time, this.fogLevel);
     this.vision.render(b, cam, this);
@@ -673,6 +713,7 @@ class Game {
       this.hud.renderHints(ctx, cam);
       this.hud.renderFloatTexts(ctx, cam);
       this.hud.render(ctx);
+      this.fx.render(ctx, { x: 0, y: 0 }, 'screen');
     }
 
     if (this.hurtFlash > 0) {

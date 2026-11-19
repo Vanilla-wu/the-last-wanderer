@@ -277,7 +277,7 @@ class Player extends Entity {
 
     if (this.state === S.ATTACK) {
       if (!this.slashSpawned && this.stateTime >= this._attackWindow()[0]) {
-        game.effects.slash(this, this.comboStep > 0 ? COMBO_SLASHES[this.comboStep - 1] : this.attackDir);
+        game.playSlash(this, this.comboStep > 0 ? COMBO_SLASHES[this.comboStep - 1] : this.attackDir);
         this.slashSpawned = true;
       }
       // 揮刀途中再按 J：預約下一擊

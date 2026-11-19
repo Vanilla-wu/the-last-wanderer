@@ -82,7 +82,13 @@ python serve.py
     - B：斬開冰壁後，在 4.5 秒的殘影視界內連跳四塊只存在於過去的平台（下方全是尖刺）
     - C：二十格深谷連續抓三個風鈴、鈴緒石門、抓風鈴登上斷崖
     - D：從斷崖躍過十格深谷（落點就在妖怪身邊），再越過尖刺坑抵達鳥居
-- **表現**：程序化像素美術、多層視差背景、寒霧、飄雪、粒子、刀光、Web Audio 合成音效與風聲
+- **表現**：程序化像素美術、多層視差背景、寒霧、飄雪、粒子、Web Audio 合成音效與風聲
+- **pixelfx 特效**（[patch-gg/pixelfx](https://github.com/patch-gg/pixelfx)，MIT）：
+  - 刀光：三段連斬依序是斜劈、反手撩（上下翻轉）、冰藍色十字斬；上劈、下劈把刀光轉 90 度
+  - 命中：一般命中是打擊火花，連段收尾與螺旋斬最後一斬是爆擊火花；一般攻擊砍到冰壁是格擋火花
+  - 傷害數字（-1、-2）從敵人頭上彈出；1.2 秒內連續命中兩次以上，畫面右上顯示金色連擊數（最多 x20）
+  - 刀光從 act 資料的命中時間開始播，命中停頓時定格在最亮的那一格；圖檔還沒載入時自動退回程式畫的刀光
+  - 特效素材由 `python tools/build_fx.py <pixelfx 資料夾>` 匯出到 `assets/fx/` 與 `data/fxsheets.js`；換特效或換色改該腳本的 `SHEETS`
 - **UI**：HP、關卡名稱、計時、可點擊的暫停鈕、區域標題、告示牌提示、通關統計與最佳紀錄
 
 ## 專案結構
@@ -92,10 +98,13 @@ index.html
 css/            main.css, game.css
 data/level01.js 關卡資料（JSON 格式，以 <script> 載入以支援 file://）
 data/parkour01.js 跑酷挑戰的賽道資料（格式相同）
+data/fxsheets.js  pixelfx 特效的 sprite sheet 資料（由 tools/build_fx.py 產生）
+assets/fx/      pixelfx 特效圖檔，以及 pixelfx 的 LICENSE 與 NOTICE
+tools/build_fx.py 從 pixelfx 匯出特效
 js/
   main.js, Game.js
   core/         GameLoop, InputManager, GameState, Storage
-  systems/      Physics, Collision, Animation, Combat, Effects, Audio, Vision
+  systems/      Physics, Collision, Animation, Combat, Effects, FxSheets, Audio, Vision
   entities/     Entity, Player, Enemy, Pickup, Projectile
   world/        Tilemap, Camera, Level, Background
   ui/           HUD, Menu

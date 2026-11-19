@@ -22,7 +22,9 @@ const Combat = {
         player.hitTargets.add(enemy);
         const knockDir = player.attackDir === 'side' ? player.facing : (enemy.centerX >= player.centerX ? 1 : -1);
         const killed = enemy.takeHit(player.getAttackDamage(), knockDir, downward);
-        game.onEnemyHit(enemy, killed);
+        game.onEnemyHit(enemy, killed, player.facing, {
+          damage: player.getAttackDamage(), heavy: player.isFinisher() || player.isSpiralFinal()
+        });
         if (spinning && !player.isSpiralFinal()) {
           // 螺旋斬前兩斬：幾乎不擊退，讓敵人留在旋風裡吃下一斬
           enemy.velocityX *= 0.2;
@@ -73,7 +75,7 @@ const Combat = {
         if (!Collision.aabb(box, enemy.getHitbox())) continue;
         wave.hitTargets.add(enemy);
         const killed = enemy.takeHit(wave.damage, wave.facing);
-        game.onEnemyHit(enemy, killed, wave.facing);
+        game.onEnemyHit(enemy, killed, wave.facing, { damage: wave.damage });
       }
       for (const b of level.breakables) {
         if (b.broken || wave.hitTargets.has(b) || !Collision.aabb(box, b.getHitbox())) continue;
