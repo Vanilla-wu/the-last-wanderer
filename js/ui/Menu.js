@@ -49,36 +49,40 @@ class ListMenu {
     return true;
   }
 
+  /** 選中的項目左邊點起一朵藍色靈火（和 HUD 的生命值同一個圖示），文字變亮；不再用漸層底色 */
   render(ctx, x, y, { spacing = 24, size = 13, align = 'left', alpha = 1 } = {}) {
     ctx.save();
     ctx.font = `${size}px ${UI_FONT}`;
+    const widths = this.items.map((item) => ctx.measureText(item.label).width);
+    ctx.restore();
     this.items.forEach((item, i) => {
       const yy = y + i * spacing;
       const selected = i === this.index;
-      const w = ctx.measureText(item.label).width;
+      const w = widths[i];
       const left = align === 'center' ? x - w / 2 : x;
-      this.rects[i] = { x: left - 18, y: yy - spacing / 2 + 2, width: w + 36, height: spacing - 4 };
+      this.rects[i] = { x: left - 20, y: yy - spacing / 2 + 2, width: w + 40, height: spacing - 4 };
       if (selected) {
-        ctx.globalAlpha = alpha * 0.9;
-        const grad = ctx.createLinearGradient(left - 18, 0, left + w + 30, 0);
-        grad.addColorStop(0, 'rgba(79,179,255,0.32)');
-        grad.addColorStop(1, 'rgba(79,179,255,0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(left - 18, yy - spacing / 2 + 3, w + 48, spacing - 6);
-        ctx.fillStyle = '#bff1ff';
-        ctx.fillRect(left - 12, yy - 2, 4, 4);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        UIDraw.icon(ctx, ICON_FLAME, ICON_FULL, Math.round(left) - 16, yy - 5, 1);
+        ctx.restore();
       }
-      ctx.restore();
-      ctx.save();
-      ctx.font = `${size}px ${UI_FONT}`;
       UIDraw.text(ctx, item.label, x, yy, {
         size, align, alpha,
-        color: item.disabled ? '#4b5568' : selected ? '#eaf6ff' : '#8395ad'
+        color: item.disabled ? MENU_INK.disabled : selected ? MENU_INK.primary : MENU_INK.secondary
       });
+      if (item.note) UIDraw.text(ctx, item.note, left + w + 8, yy + 1, { size: 10, alpha, color: MENU_INK.muted });
     });
-    ctx.restore();
   }
 }
+
+/** 選單文字只用三種墨色（加上停用），強調色冰藍只留給選中項目的靈火 */
+const MENU_INK = Object.freeze({
+  primary: '#e8eef4',
+  secondary: '#9aabbd',
+  muted: '#6c7a8b',
+  disabled: '#4f5a68'
+});
 
 const CONTROL_LIST = [
   ['A / D 或 ← →', '左右移動'],
@@ -113,7 +117,7 @@ class MenuSystem {
     this.list = new ListMenu([
       { label: '開始新旅程', action: () => g.newGame() },
       { label: '從檢查點繼續', disabled: !g.hasSave(), action: () => g.continueGame() },
-      { label: unlocked ? '跑酷挑戰' : '跑酷挑戰（通關第一章後解鎖）', disabled: !unlocked, action: () => g.startParkour() },
+      { label: '跑酷挑戰', note: unlocked ? '' : '通關第一章後解鎖', disabled: !unlocked, action: () => g.startParkour() },
       { label: '操作說明', action: () => { this.showControls = true; } }
     ]);
   }
@@ -168,44 +172,48 @@ class MenuSystem {
 
   renderMain(ctx) {
     const g = this.game;
-    UIDraw.text(ctx, 'The Last Wanderer', 48, 116, { size: 40, font: SERIF_FONT, color: '#eaf3fb' });
-    UIDraw.text(ctx, '末　路　行　者', 51, 150, { size: 17, color: '#9fc3e6' });
-    UIDraw.text(ctx, '一名失去記憶的獨眼劍客，於寒霧中踏上歸途。', 51, 174, { size: 10, color: 'rgba(200,215,230,0.75)' });
-    this.list.render(ctx, 66, 214, { spacing: 26, size: 13 });
+    // 左邊一條線（x = 48）：標題組、選單、紀錄與提示三組，組內緊、組間鬆
+    const X = 48;
+    UIDraw.text(ctx, 'The Last Wanderer', X - 2, 112, { size: 40, font: SERIF_FONT, color: MENU_INK.primary });
+    UIDraw.text(ctx, '末　路　行　者', X, 148, { size: 16, color: MENU_INK.secondary });
+    UIDraw.text(ctx, '一名失去記憶的獨眼劍客，於寒霧中踏上歸途', X, 172, { size: 11, color: MENU_INK.muted });
+    this.list.render(ctx, X, 212, { spacing: 24, size: 13 });
 
     const best = SaveStore.get('best', null);
     const parkourBest = SaveStore.get('parkourBest', null);
     const records = [];
     if (best !== null) records.push(`最佳通關　${UIDraw.formatTime(best)}`);
     if (parkourBest !== null) records.push(`跑酷最佳　${UIDraw.formatTime(parkourBest)}`);
-    if (records.length) UIDraw.text(ctx, records.join('　　'), 51, 318, { size: 10, color: '#ffe3a8' });
-    UIDraw.text(ctx, '↑ ↓ 選擇　Enter / J 確認　M 靜音', 51, 338, { size: 9, color: 'rgba(200,215,230,0.55)' });
-    UIDraw.text(ctx, 'v1.0 Demo', 628, 344, { size: 8, align: 'right', font: SERIF_FONT, color: 'rgba(200,215,230,0.4)' });
+    if (records.length) UIDraw.text(ctx, records.join('　　'), X, 320, { size: 11, color: MENU_INK.secondary });
+    UIDraw.text(ctx, '↑ ↓ 選擇　Enter / J 確認　M 靜音', X, 340, { size: 10, color: MENU_INK.muted });
+    UIDraw.text(ctx, 'v1.0 Demo', 640 - X, 340, { size: 10, align: 'right', font: SERIF_FONT, color: MENU_INK.muted });
 
-    if (this.showControls) this._renderControls(ctx, 160, 44, 320, 272, '操作說明', true);
+    if (this.showControls) this._renderControls(ctx, 160, 36, 320, 288, '操作說明', true);
   }
 
   _renderControls(ctx, x, y, w, h, title, footer) {
     ctx.fillStyle = 'rgba(3,5,10,0.5)';
     if (footer) ctx.fillRect(0, 0, 640, 360);
     UIDraw.panel(ctx, x, y, w, h, 0.95);
-    UIDraw.text(ctx, title, x + w / 2, y + 22, { size: 13, align: 'center', weight: 'bold' });
+    UIDraw.text(ctx, title, x + w / 2, y + 20, { size: 13, align: 'center', color: MENU_INK.primary });
+    const col = Math.round(x + w * 0.36);
     CONTROL_LIST.forEach(([key, desc], i) => {
-      const yy = y + 42 + i * 14.4;
-      UIDraw.text(ctx, key, x + w * 0.36, yy, { size: 10, align: 'right', color: '#bff1ff' });
-      UIDraw.text(ctx, desc, x + w * 0.36 + 12, yy, { size: 10, color: '#c9d6e3' });
+      const yy = y + 44 + i * 16;
+      UIDraw.text(ctx, key, col, yy, { size: 10, align: 'right', color: MENU_INK.primary });
+      UIDraw.text(ctx, desc, col + 12, yy, { size: 10, color: MENU_INK.secondary });
     });
-    if (footer) UIDraw.text(ctx, '按任意確認鍵返回', x + w / 2, y + h - 14, { size: 9, align: 'center', color: 'rgba(200,215,230,0.55)' });
+    if (footer) UIDraw.text(ctx, 'Enter / Esc 返回', x + w / 2, y + h - 16, { size: 10, align: 'center', color: MENU_INK.muted });
   }
 
   renderPause(ctx) {
     ctx.fillStyle = 'rgba(3,5,10,0.6)';
     ctx.fillRect(0, 0, 640, 360);
-    UIDraw.panel(ctx, 50, 56, 210, 248, 0.95);
+    // 操作說明行距改為 16 後兩塊面板一起加高到 264
+    UIDraw.panel(ctx, 50, 48, 210, 264, 0.95);
     UIDraw.text(ctx, '暫　停', 155, 96, { size: 18, align: 'center', weight: 'bold' });
     UIDraw.text(ctx, 'PAUSED', 155, 118, { size: 9, align: 'center', font: SERIF_FONT, color: '#9fc3e6' });
     this.list.render(ctx, 155, 170, { spacing: 30, size: 13, align: 'center' });
-    this._renderControls(ctx, 274, 56, 316, 248, '操作說明', false);
+    this._renderControls(ctx, 274, 48, 316, 264, '操作說明', false);
   }
 
   renderGameOver(ctx, t) {
