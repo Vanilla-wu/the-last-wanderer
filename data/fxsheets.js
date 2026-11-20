@@ -7,20 +7,20 @@
 window.FX_SHEETS = {
   "slash": {
     "fps": 30,
-    "frames": 24,
+    "frames": 20,
     "frameSize": [
-      136,
-      104
+      152,
+      112
     ],
-    "columns": 5,
+    "columns": 4,
     "pivot": [
-      44,
-      92
+      52,
+      98
     ],
-    "source": "melee/sword-slash",
+    "source": "daoke/dao-slash",
     "hits": [
       {
-        "t": 0.06,
+        "t": 0.05,
         "freeze": 0.14,
         "shake": 0.18,
         "amp": 2
@@ -176,6 +176,132 @@ window.FX_SHEETS = {
       120
     ],
     "source": "critters/flying-skull"
+  },
+  "knifeSkullWalk": {
+    "fps": 20,
+    "frames": 10,
+    "frameSize": [
+      56,
+      48
+    ],
+    "columns": 3,
+    "pivot": [
+      26,
+      44
+    ],
+    "source": "daoke/knife-skull-walk"
+  },
+  "knifeSkullSlash": {
+    "fps": 20,
+    "frames": 16,
+    "frameSize": [
+      72,
+      52
+    ],
+    "columns": 4,
+    "pivot": [
+      26,
+      46
+    ],
+    "source": "daoke/knife-skull-slash"
+  },
+  "skullKingWalk": {
+    "fps": 15,
+    "frames": 14,
+    "frameSize": [
+      104,
+      84
+    ],
+    "columns": 4,
+    "pivot": [
+      48,
+      78
+    ],
+    "source": "daoke/skull-king-walk"
+  },
+  "skullKingCharge": {
+    "fps": 15,
+    "frames": 6,
+    "frameSize": [
+      104,
+      84
+    ],
+    "columns": 3,
+    "pivot": [
+      48,
+      78
+    ],
+    "source": "daoke/skull-king-charge"
+  },
+  "skullKingPound": {
+    "fps": 15,
+    "frames": 18,
+    "frameSize": [
+      128,
+      96
+    ],
+    "columns": 4,
+    "pivot": [
+      48,
+      86
+    ],
+    "source": "daoke/skull-king-pound"
+  },
+  "skullKingStomp": {
+    "fps": 15,
+    "frames": 16,
+    "frameSize": [
+      128,
+      96
+    ],
+    "columns": 4,
+    "pivot": [
+      60,
+      86
+    ],
+    "source": "daoke/skull-king-stomp"
+  },
+  "skullKingSummon": {
+    "fps": 15,
+    "frames": 19,
+    "frameSize": [
+      128,
+      100
+    ],
+    "columns": 4,
+    "pivot": [
+      56,
+      90
+    ],
+    "source": "daoke/skull-king-summon"
+  },
+  "skullKingThrow": {
+    "fps": 15,
+    "frames": 18,
+    "frameSize": [
+      128,
+      100
+    ],
+    "columns": 4,
+    "pivot": [
+      56,
+      90
+    ],
+    "source": "daoke/skull-king-throw"
+  },
+  "skullShockwave": {
+    "fps": 15,
+    "frames": 6,
+    "frameSize": [
+      64,
+      40
+    ],
+    "columns": 2,
+    "pivot": [
+      40,
+      34
+    ],
+    "source": "daoke/skull-shockwave"
   },
   "dmg1": {
     "fps": 30,

@@ -46,7 +46,7 @@ class FxSheets {
   }
 
   /** 直接畫 sheet 的第 frame 格，錨點對齊 (x, y)（已扣掉鏡頭）；variant：null、'flash' 或 'ghost' */
-  drawFrame(ctx, name, frame, x, y, { flipX = false, variant = null, alpha = 1 } = {}) {
+  drawFrame(ctx, name, frame, x, y, { flipX = false, variant = null, alpha = 1, scale = 1 } = {}) {
     const s = this.sheets[name];
     let img = this.images[name];
     if (variant) {
@@ -60,6 +60,7 @@ class FxSheets {
     ctx.globalAlpha = alpha;
     ctx.translate(Math.round(x), Math.round(y));
     if (flipX) ctx.scale(-1, 1);
+    if (scale !== 1) ctx.scale(scale, scale);   // 角色類的 sheet 照 pixelfx 原比例畫，遊戲裡整數放大
     ctx.drawImage(img, (f % s.columns) * w, Math.floor(f / s.columns) * h, w, h, -s.pivot[0], -s.pivot[1], w, h);
     ctx.restore();
   }

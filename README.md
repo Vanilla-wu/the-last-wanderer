@@ -73,6 +73,8 @@ python serve.py
 - **角色**：玩家 FSM（IDLE / RUN / JUMP / FALL / ATTACK / HURT / DEATH / DODGE）與 Sprite Sheet 動畫
 - **敵人**：森林妖怪（巡邏、轉身避開斷崖/牆/尖刺、接觸傷害、受擊、死亡）
 - **火焰骷髏**（`js/entities/FlyingSkull.js`，外觀取自 pixelfx 的 `critters/flying-skull`）：飛行敵人，生命 2，任何時候碰到都會受傷，但只扣血、不擊退劍客也不打斷動作；玩家進入約 7 格內就蓄勢約 0.38 秒後俯衝。弱追蹤：俯衝速度 285（跑速的 1.5 倍），只在前 0.5 秒、劍客還在前方時轉向，每秒最多轉 1.2 弧度；俯衝會穿過劍客的身體（碰到就受傷，不會停下），衝完或撞到地形就原地升回原本的高度，冷卻約 0.58 秒後再次攻擊；玩家離開攻擊判定區才飛回出生點。帶有隨機性：冷卻 0.35–0.87 秒、蓄勢 0.28–0.49 秒、俯衝速度 257–314、瞄準點偏移，升回時往左右偏、飄浮時左右遊移，節奏不好背。第一章放在 D 區冰壁後、E 區石門前與神社前（關卡資料的 `skulls`）
+- **骷髏王**（魔王，`js/entities/SkullKing.js`，外觀是本專案用 pixelfx 自製的 `daoke/skull-king-*`，放大 2 倍、約持刀骷髏的兩倍大）：生命 30，沒有武器，戴鐵王冠、披暗紅破披風、一雙巨大骨拳。只在自己的空地裡活動，劍客走進空地才開戰，畫面下方出現血條。招式：**猛捶**（近身，雙拳高舉後砸向身前地面）、**震地板**（抬腳重踩，兩道震波沿地面往左右推，要跳過）、**衝撞**（遠距離，抖動閃白蓄勢後低頭衝到空地邊緣，撞牆後暈眩 1.1 秒，是反擊的時機）、**召喚**（開戰約 4 秒後、之後每 12 秒，場上少於 2 隻時在左右叫出兩隻持刀骷髏）、**投擲**（身邊有活超過 7 秒的持刀骷髏時，有 55% 機率抓起來舉過頭朝劍客甩出；骷髏邊旋轉邊沿拋物線飛向劍客的位置，碰到會受傷，落地時自己扣 2 滴血，摔不死就暈 0.6 秒再起來追）。被打中不會被擊退、圍巾也拉不動。暫時放在 B 區入口新開的 32 格大空地（第 38–69 欄，原本第 38 欄之後的關卡整段往右移 32 格；關卡資料的 `skullKing`），空地兩側各有一個裝魂火的陶罐
+- **持刀骷髏**（`js/entities/KnifeSkull.js`，外觀是本專案用 pixelfx 自製的 `daoke/knife-skull-walk`、`daoke/knife-skull-slash`，遊戲中放大 2 倍）：地面小怪，生命 3。沒發現劍客時在出生點附近閒晃；劍客進入水平 280 px、高度差 90 px 內就以 96 px/s（跑速的一半）追過去，靠近到 50 px 內停下揮刀——刀舉到頭後蓄勢 0.32 秒，劈下的 0.1 秒有判定，收刀後冷卻 0.5–0.9 秒。身體碰到不會受傷，只有刀會砍人；被打中會中斷揮刀。會辨識懸崖：前方腳下沒有地面、有牆或尖刺時停在邊緣面向劍客，不會自己掉下去；劍客跳過深谷就甩得掉（超過 440 px 放棄追擊）。第一章放在 C 區深谷前、三格小斷崖前與 E 區神社前（關卡資料的 `knifeSkulls`）
 - **訓練用木樁**（`js/entities/TrainingDummy.js`）：打不壞、不會動、不造成傷害；被打中會晃動並照常跳出火花、傷害數字與連擊數，下劈也能在上面彈起。第一章沿路放 5 根（A 區、C 區連段與上下劈教學旁、D 區取得居合之卷後、E 區取得蒼風之結後；關卡資料的 `dummies`）
 - **關卡**：A–E 五個區域（全長 363 格）、6 個石燈籠檢查點（LocalStorage 存檔，可從主選單繼續）、廢棄神社終點
 - **跑酷挑戰**（`data/parkour01.js`「風之試煉」，通關第一章後從主選單解鎖）
@@ -85,14 +87,16 @@ python serve.py
     - C：二十格深谷連續抓三個風鈴、鈴緒石門、抓風鈴登上斷崖
     - D：從斷崖躍過十格深谷（落點就在妖怪身邊），再越過尖刺坑抵達鳥居
 - **表現**：程序化像素美術、多層視差背景、寒霧、飄雪、粒子、Web Audio 合成音效與風聲
+- **主角外觀**（`js/art/Sprites.js` 的 `drawWanderer`）：斗笠浪人——壓低的寬邊斗笠、眼罩與舊傷、灰藍羽織、黑袴、繃帶綁腿與草鞋、左腰刀鞘、深藍圍巾；武器是微彎的打刀（編繩刀柄、圓鍔、刃紋與刀背）。照 pixelfx 的作業流程從三版草稿選定，布料左上受光分亮、主色、暗三階，硬邊多邊形逐列填滿保持像素銳利；骨架與所有動作沿用原本的 `playerPose` / `comboPose`
 - **pixelfx 特效**（[patch-gg/pixelfx](https://github.com/patch-gg/pixelfx)，MIT）：
   - 招式動作取自 pixelfx：三連擊 `moves/sword-combo`（斜劈、交叉雙斬、雙手重劈）、旋風斬 `melee/spin-slash`、衝刺斬 `moves/dash-strike`。姿勢由 `node tools/sample_moves.mjs <pixelfx 資料夾>` 取樣到 `data/swordmoves.js`，在 `js/art/Sprites.js` 的 `comboPose()` 放大 2 倍轉套到劍客身上（另用 240×160 的畫格）；2D 骨架沒有轉身的軸，旋風斬的轉身以前後壓縮、轉到背面時鏡像來表現
   - 旋風斬：每一斬轉出一圈 `spin-slash` 的冰藍刀光環
   - 衝刺斬：疾衝時有殘影與 `thrust` 的突刺光束（換成冰藍色），劈下用斜劈刀光，命中是爆擊火花；原作衝 7 格並跳回原位，這裡只衝約 4 格、不跳回，以免直接飛越深谷
   - 節奏：`Player.js` 的 `COMBO_TIMING` 只取 pixelfx 時間軸上「刀舉到最高 → 出刀後停住」那一段，壓縮到遊戲的「開始、判定開始、收刀」；單按一擊 0.24 秒收刀，連按時 0.3 秒接下一擊，收尾重劈 0.62 秒（劈完壓低身子再慢慢起身）；劍客原地揮刀不前後位移；橫斬三連擊時地面移動速度降到 10%、空中 50%（上劈、下劈不減速）
-  - 刀光：三連擊用對應的 pixelfx 刀光（斜劈、冰藍色交叉雙斬、冰藍色雙手重劈）；上劈、下劈把斜劈的刀光轉 90 度
+  - 刀光：三連擊用對應的 pixelfx 刀光（雪刃斜劈、冰藍色交叉雙斬、冰藍色雙手重劈）；上劈、下劈把斜劈的刀光轉 90 度
+  - 雪刃斜劈是本專案自製的 `tools/pixelfx/daoke/dao-slash.js`（共用程式 `_dao.js`）：以 pixelfx 的 sword-slash 為底，墨色到月白、掃完那一格整道白熱、刀鋒沿弧削起雪屑；由三版草稿（厚重、居合、雪刃）經「算圖 → 看圖 → 修正」挑出
   - 雙手重劈用的是本專案修改過的 `tools/pixelfx/melee/clean-cleave.js`：由 pixelfx 的 heavy-cleave 拿掉碎裂地板（裂痕、焦痕、地面震波、碎石、揚塵），匯出時自動帶入
-  - 命中停頓：一般命中 0.13 秒、收尾重劈 0.15 秒
+  - 命中停頓與震動依 pixelfx `sword-combo` 的 act 分輕重：一般命中停 0.13 秒，三連擊前兩擊震 4 px、0.18 秒；收尾重劈停 0.2 秒、震 6 px、0.34 秒
   - 命中：一般命中是打擊火花，連段收尾、旋風斬最後一斬與衝刺斬是爆擊火花；一般攻擊砍到冰壁是格擋火花
   - 傷害數字（-1、-2）從敵人頭上彈出；1.2 秒內連續命中兩次以上，畫面右上顯示金色連擊數（最多 x20）
   - 刀光從 act 資料的命中時間開始播，命中停頓時定格在最亮的那一格；圖檔還沒載入時自動退回程式畫的刀光
@@ -116,7 +120,7 @@ js/
   main.js, Game.js
   core/         GameLoop, InputManager, GameState, Storage
   systems/      Physics, Collision, Animation, Combat, Effects, FxSheets, Audio, Vision
-  entities/     Entity, Player, Enemy, FlyingSkull, TrainingDummy, Pickup, Anchor, Breakable
+  entities/     Entity, Player, Enemy, FlyingSkull, KnifeSkull, SkullKing, TrainingDummy, Pickup, Anchor, Breakable
   world/        Tilemap, Camera, Level, Background
   ui/           HUD, Menu
   art/          Sprites（程序化生成 Sprite Sheet、圖塊與道具）

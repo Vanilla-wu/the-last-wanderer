@@ -21,7 +21,7 @@ GOLD = ["#1a1205", "#3d2a0a", "#70501a", "#b08a2f", "#f5c84c", "#ffe3a8", "#fff4
 
 # 遊戲中的名稱 -> (pixelfx id, 選項[, fps])
 SHEETS = {
-    'slash': ('melee/sword-slash', {}),                    # 三連擊第一擊：斜劈；轉 90 度成上劈 / 下劈
+    'slash': ('daoke/dao-slash', {}),                      # 三連擊第一擊：雪刃斜劈（本專案自製，見 tools/pixelfx/daoke/）；轉 90 度成上劈 / 下劈
     'cross': ('melee/double-slash', {'palette': ICE}),     # 三連擊第二擊：交叉雙斬（換成冰藍色）
     'cleave': ('melee/clean-cleave', {'palette': ICE}),    # 三連擊第三擊：雙手重劈（拿掉碎裂地板的版本，換成冰藍色）
     'hitSpark': ('impacts/hit-spark', {}),
@@ -30,6 +30,16 @@ SHEETS = {
     'crit': ('impacts/crit-hit', {}),                      # 收尾、旋風斬最後一斬、衝刺斬
     'parry': ('impacts/parry', {}),                        # 一般攻擊砍到冰壁
     'skull': ('critters/flying-skull', {'floor': False}, 15),   # 敵人：火焰骷髏（循環動畫，不畫地面光影；15 fps 檔案小一點）
+    'knifeSkullWalk': ('daoke/knife-skull-walk', {}, 20),     # 敵人：持刀骷髏走路（本專案自製，見 tools/pixelfx/daoke/）
+    'knifeSkullSlash': ('daoke/knife-skull-slash', {}, 20),   # 敵人：持刀骷髏揮刀（蓄勢 → 劈下 → 收刀）
+    # 魔王：骷髏王（本專案自製，見 tools/pixelfx/daoke/）；15 fps 檔案小一點
+    'skullKingWalk': ('daoke/skull-king-walk', {}, 15),
+    'skullKingCharge': ('daoke/skull-king-charge', {}, 15),
+    'skullKingPound': ('daoke/skull-king-pound', {}, 15),     # 猛捶：HIT 0.55 秒
+    'skullKingStomp': ('daoke/skull-king-stomp', {}, 15),     # 震地板：HIT 0.5 秒
+    'skullKingSummon': ('daoke/skull-king-summon', {}, 15),   # 召喚：HIT 0.7 秒
+    'skullKingThrow': ('daoke/skull-king-throw', {}, 15),     # 投擲：抓起身邊的骷髏，HIT 0.5 秒甩出
+    'skullShockwave': ('daoke/skull-shockwave', {}, 15),      # 震地板推出去的震波（循環）
 }
 for n in (1, 2):
     SHEETS[f'dmg{n}'] = ('ui/damage-number', {'text': f'-{n}'})
@@ -41,6 +51,7 @@ CUSTOM = os.path.join(GAME, 'tools', 'pixelfx')
 for root, _, files in os.walk(CUSTOM):
     for f in files:
         rel = os.path.relpath(os.path.join(root, f), CUSTOM)
+        os.makedirs(os.path.dirname(os.path.join(PFX, 'src', 'fx', rel)), exist_ok=True)
         shutil.copy(os.path.join(root, f), os.path.join(PFX, 'src', 'fx', rel))
 
 shutil.rmtree(OUT, ignore_errors=True)

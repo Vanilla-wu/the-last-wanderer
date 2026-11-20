@@ -35,11 +35,15 @@ const Combat = {
           game.hitstop = Math.max(game.hitstop, 0.1);
           game.camera.shake(5, 0.2);
         }
+        // 三連擊依 pixelfx sword-combo 的 act 分輕重：前兩擊停頓 0.13 秒、震 4 px（amp 2 × 角色放大 2 倍）0.18 秒，
+        // 收尾重劈停頓 0.2 秒、震 6 px 0.34 秒
         if (player.isFinisher()) {
           // 連段收尾：擊退更遠、停頓更久
           enemy.velocityX *= player.cfg.finisherKnockback;
-          game.hitstop = Math.max(game.hitstop, 0.15);
-          game.camera.shake(5, 0.2);
+          game.hitstop = Math.max(game.hitstop, 0.2);
+          game.camera.shake(6, 0.34);
+        } else if (player.state === PLAYER_STATES.ATTACK && player.comboStep > 0) {
+          game.camera.shake(4, 0.18);
         }
         if (downward) player.pogo(game);
       }
@@ -77,6 +81,20 @@ const Combat = {
           player.takeDamage(ENEMY_CONFIG.contactDamage, enemy.centerX, { knockback: !enemy.noKnockback })) {
         game.onPlayerDamaged();
         break;
+      }
+    }
+
+    // 敵人的攻擊判定（持刀骷髏的刀、骷髏王的拳頭與震波）：只在出手的那一小段時間有判定
+    if (player.state !== PLAYER_STATES.DEATH) {
+      for (const enemy of level.enemies) {
+        if (enemy.isDead) continue;
+        // 持刀骷髏的刀是一個判定框；骷髏王的拳頭與震波可能同時有好幾個
+        const boxes = enemy.getAttackHitboxes ? enemy.getAttackHitboxes() : enemy.getAttackHitbox ? [enemy.getAttackHitbox()] : [];
+        const hit = boxes.find((b) => b && Collision.aabb(player.getHurtbox(), b));
+        if (hit && player.takeDamage(ENEMY_CONFIG.contactDamage, hit.x + hit.width / 2)) {
+          game.onPlayerDamaged();
+          break;
+        }
       }
     }
 

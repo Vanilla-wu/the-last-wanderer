@@ -95,6 +95,19 @@ class Level {
       const s = SKULL_CONFIG.size;
       this.enemies.push(new FlyingSkull(tx * T + (T - s) / 2, row * T + (T - s) / 2));
     }
+    // 持刀骷髏：[欄, 地面列]
+    for (const [tx, row] of this.data.knifeSkulls || []) {
+      const c = KNIFE_SKULL_CONFIG;
+      this.enemies.push(new KnifeSkull(tx * T + (T - c.width) / 2, row * T - c.height, T));
+    }
+    // 骷髏王：{ x 出生欄, row 地面列, arena: [左欄, 右欄] } 只在這塊空地裡活動
+    const k = this.data.skullKing;
+    this.boss = null;
+    if (k) {
+      const c = SKULL_KING_CONFIG;
+      this.boss = new SkullKing(k.x * T + (T - c.width) / 2, k.row * T - c.height, [k.arena[0] * T, (k.arena[1] + 1) * T]);
+      this.enemies.push(this.boss);
+    }
     this.totalEnemies = this.enemies.length;
   }
 

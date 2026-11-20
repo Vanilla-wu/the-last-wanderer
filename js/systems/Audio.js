@@ -213,6 +213,17 @@ class AudioSystem {
         this._noise({ type: 'bandpass', freq: 600, to: 2400, q: 1, dur: 0.35, vol: 0.18 });
         this._tone({ type: 'sawtooth', freq: 220, to: 90, dur: 0.3, vol: 0.04 });
         break;
+      case 'kingSlam':
+        // 骷髏王的重擊落地：低沉的悶響加碎石聲
+        this._tone({ type: 'sine', freq: 90, to: 38, dur: 0.45, vol: 0.32 });
+        this._noise({ type: 'lowpass', freq: 900, to: 200, dur: 0.5, vol: 0.3 });
+        break;
+      case 'kingRoar':
+        // 骷髏王開戰、召喚：喉間低吼與骨頭喀喀聲
+        this._tone({ type: 'sawtooth', freq: 70, to: 52, dur: 0.8, vol: 0.08 });
+        this._noise({ type: 'bandpass', freq: 300, to: 700, q: 2, dur: 0.8, vol: 0.12 });
+        [0, 0.1, 0.2, 0.3].forEach((d) => this._tone({ type: 'square', freq: 120, to: 95, dur: 0.05, vol: 0.04, delay: d }));
+        break;
       case 'spiral':
         // 三聲旋風呼嘯，對應三次斬擊
         [0, 0.14, 0.28].forEach((d, i) => {

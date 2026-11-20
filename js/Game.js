@@ -690,6 +690,26 @@ class Game {
     this.background.renderForeground(b, { x: this.menuScroll * 1.5, y: 60 }, this.time, 0.5);
   }
 
+  /** 魔王血條：開戰後顯示在畫面下方，打倒後淡出 */
+  _renderBossBar(ctx) {
+    const b = this.level && this.level.boss;
+    if (!b || !b.engaged || b.removed) return;
+    const a = b.isDead ? Math.max(0, 1 - b.stateTime / SKULL_KING_CONFIG.deathDuration) : 1;
+    const w = 300, x = 320 - w / 2, y = 330;
+    ctx.save();
+    ctx.globalAlpha = a;
+    UIDraw.text(ctx, '骷髏王', x, y - 9, { size: 11, color: '#e8eef4' });
+    ctx.fillStyle = 'rgba(8,12,22,0.85)';
+    ctx.fillRect(x - 1, y - 1, w + 2, 8);
+    ctx.fillStyle = '#5e1b2c';
+    ctx.fillRect(x, y, w, 6);
+    ctx.fillStyle = '#c0384a';
+    ctx.fillRect(x, y, Math.round(w * Math.max(0, b.hp) / b.maxHp), 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(x, y, Math.round(w * Math.max(0, b.hp) / b.maxHp), 1);
+    ctx.restore();
+  }
+
   _renderUI(ctx) {
     const s = this.state;
     if (s.is(GameStates.MAIN_MENU)) {
@@ -702,6 +722,7 @@ class Game {
       this.hud.renderHints(ctx, cam);
       this.hud.renderFloatTexts(ctx, cam);
       this.hud.render(ctx);
+      this._renderBossBar(ctx);
       this.fx.render(ctx, { x: 0, y: 0 }, 'screen');
     }
 
