@@ -337,49 +337,145 @@ function drawMoveFrame(g, name, f, n) {
   drawWanderer(g, p, COMBO_FRAME);
 }
 
-function drawLeg(g, hx, hy, leg, back) {
-  const L = 17;
-  const kx = hx + Math.sin(leg.a) * L, ky = hy + Math.cos(leg.a) * L;
-  const fx = kx + Math.sin(leg.a - leg.b) * L, fy = ky + Math.cos(leg.a - leg.b) * L;
-  Px.line(g, hx, hy, kx, ky, 9, back ? PAL.clothDark : PAL.cloth);
-  Px.line(g, kx, ky, fx, fy, 6, back ? PAL.wrapDark : PAL.wrap);
-  Px.rect(g, fx - 3, fy - 2, 9, 3, PAL.sandal);
+/*
+ * 劍客的畫法：斗笠浪人（從三版草稿中選定，作業流程同 pixelfx：草稿 → 算圖 → 看圖 → 修正）
+ * 骨架（髖、肩、手、腳、刀角度）由 playerPose / comboPose 給，這裡只負責「怎麼畫」：
+ * 有明暗的布料（左上受光：亮一階、主色、暗一階）、袖子、袴的褶線、綁腿與草鞋、側臉、壓低的斗笠，
+ * 刀是微彎的打刀（編繩刀柄、圓鍔、刃紋與刀背）。外框由 buildSheet 的 outlined() 統一加上。
+ */
+const WANDERER = {
+  coat: { base: '#4a5878', light: '#6b7c9e', dark: '#2f3a55' },
+  pants: { base: '#252a3b', light: '#363d55', dark: '#171a26' },
+  inner: '#d9d2c3', obi: '#7a2f36', obiLight: '#c95a5a',
+  wrap: '#b9b2a2', wrapLight: '#e8e1d0', wrapDark: '#857f72',
+  skin: '#e2c9b0', skinDark: '#b8987e', hair: '#16161f', hairLight: '#2c2c3c',
+  hat: ['#8f7a52', '#6e5b38', '#4a3c22', '#2e2514'],   // 斗笠：受光面、主色、陰影、帽頂與繩（調暗過）
+  scarf: { base: PAL.scarf, light: PAL.scarfLight, dark: PAL.scarfDark },
+  steel: '#c7d3e0', edge: '#f4f8fc', spine: '#7d8ea6', tsuba: '#8a6a32', tsubaLight: '#e0bd6e',
+  ito: ['#2a2236', '#5b4c73'], sheath: '#1a1622'
+};
+
+/** 硬邊多邊形：逐列填滿、不反鋸齒，保持像素銳利 */
+function pxPoly(g, pts, color) {
+  g.fillStyle = color;
+  let y0 = Infinity, y1 = -Infinity;
+  for (const [, y] of pts) { y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  for (let y = Math.floor(y0); y <= Math.ceil(y1); y++) {
+    const yc = y + 0.5, xs = [];
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, yi] = pts[i], [xj, yj] = pts[j];
+      if ((yi > yc) !== (yj > yc)) xs.push(xi + (yc - yi) / (yj - yi) * (xj - xi));
+    }
+    xs.sort((a, b) => a - b);
+    for (let k = 0; k + 1 < xs.length; k += 2) {
+      const a = Math.round(xs[k]), b = Math.round(xs[k + 1]);
+      if (b > a) g.fillRect(a, y, b - a, 1);
+    }
+  }
 }
 
+/** 由 a 到 b 的梯形（寬 wa → wb）的四個角 */
+function pxBand(ax, ay, bx, by, wa, wb) {
+  const d = Math.hypot(bx - ax, by - ay) || 1, nx = -(by - ay) / d, ny = (bx - ax) / d;
+  return [[ax + nx * wa / 2, ay + ny * wa / 2], [bx + nx * wb / 2, by + ny * wb / 2], [bx - nx * wb / 2, by - ny * wb / 2], [ax - nx * wa / 2, ay - ny * wa / 2]];
+}
+
+/** 有明暗的肢段：主色，朝左上的那一側亮一條、另一側暗一條 */
+function pxLimb(g, ax, ay, bx, by, wa, wb, c) {
+  pxPoly(g, pxBand(ax, ay, bx, by, wa, wb), c.base);
+  const d = Math.hypot(bx - ax, by - ay) || 1, nx = -(by - ay) / d, ny = (bx - ax) / d;
+  const s = (nx * -0.7 + ny * -0.7) > 0 ? 1 : -1, o = (w) => s * (w / 2 - 1.2);
+  pxPoly(g, pxBand(ax + nx * o(wa), ay + ny * o(wa), bx + nx * o(wb), by + ny * o(wb), 2, 2), c.light);
+  pxPoly(g, pxBand(ax - nx * o(wa), ay - ny * o(wa), bx - nx * o(wb), by - ny * o(wb), 2, 2), c.dark);
+}
+
+function pxDot(g, x, y, c, w = 1, h = 1) {
+  g.fillStyle = c;
+  g.fillRect(Math.round(x), Math.round(y), w, h);
+}
+
+/** 腳的兩段：髖 → 膝 → 腳（大腿、小腿各 LEG） */
+function legJoints(hx, hy, leg) {
+  const kx = hx + Math.sin(leg.a) * LEG, ky = hy + Math.cos(leg.a) * LEG;
+  return { kx, ky, fx: kx + Math.sin(leg.a - leg.b) * LEG, fy: ky + Math.cos(leg.a - leg.b) * LEG };
+}
+
+/** 袴：大腿到小腿中段都是寬褲管，之後收進綁腿，穿草鞋 */
+function drawLeg(g, hx, hy, leg, back) {
+  const W = WANDERER;
+  const { kx, ky, fx, fy } = legJoints(hx, hy, leg);
+  const P = back ? { base: W.pants.dark, light: W.pants.base, dark: '#0f1119' } : W.pants;
+  pxLimb(g, hx, hy, kx, ky, 11, 11, P);
+  const mx = kx + (fx - kx) * 0.55, my = ky + (fy - ky) * 0.55;
+  pxLimb(g, kx, ky, mx, my, 11, 9, P);
+  pxLimb(g, mx, my, fx, fy - 1, 5, 4, back ? { base: W.wrapDark, light: W.wrap, dark: W.wrapDark } : { base: W.wrap, light: W.wrapLight, dark: W.wrapDark });
+  if (!back) for (let k = 0.2; k < 0.9; k += 0.3) pxDot(g, mx + (fx - mx) * k - 2, my + (fy - my) * k, W.wrapDark, 4, 1);
+  pxPoly(g, [[fx - 3, fy - 2], [fx + 6, fy - 1], [fx + 6, fy + 1], [fx - 3, fy + 1]], back ? '#121119' : '#262330');
+  pxDot(g, fx - 2, fy - 2, back ? '#262330' : '#4a4252', 3, 1);
+  if (!back) {
+    for (let i = 1; i < 3; i++) {
+      const t = i / 3;
+      pxDot(g, hx + (kx - hx) * t, hy + (ky - hy) * t + 1, P.dark);
+      pxDot(g, kx + (mx - kx) * t, ky + (my - ky) * t, P.dark);
+    }
+  }
+}
+
+/** 手臂：袖子在手肘處張開，前臂纏護手，露出手 */
 function drawArm(g, sx, sy, hx, hy, back) {
-  const dx = hx - sx, dy = hy - sy;
-  const len = Math.hypot(dx, dy) || 1;
+  const W = WANDERER;
+  const dx = hx - sx, dy = hy - sy, len = Math.hypot(dx, dy) || 1;
   let px = -dy / len, py = dx / len;
   if (py < 0) { px = -px; py = -py; }
   const bend = Math.max(1.5, (24 - len) * 0.45);
   const ex = (sx + hx) / 2 + px * bend, ey = (sy + hy) / 2 + py * bend;
-  Px.line(g, sx, sy, ex, ey, back ? 4 : 5, back ? PAL.clothDark : PAL.clothLight);
-  Px.line(g, ex, ey, hx, hy, 4, back ? PAL.armorDark : PAL.armorShade);
-  Px.rect(g, hx - 2, hy - 2, 4, 4, back ? PAL.hair : '#3a3446');
+  const C = back ? { base: W.coat.dark, light: W.coat.base, dark: '#151a2c' } : W.coat;
+  if (!back) pxPoly(g, pxBand(sx, sy, ex, ey, 8, 11), '#141826');   // 墊一圈深色，和同色的身體分開
+  pxLimb(g, sx, sy, ex, ey, 6, 9, C);
+  if (!back) {
+    pxDot(g, sx + (ex - sx) * 0.55 + 1, sy + (ey - sy) * 0.55, C.dark, 2, 1);
+    pxDot(g, sx + (ex - sx) * 0.8, sy + (ey - sy) * 0.8 + 1, C.dark, 2, 1);
+  }
+  pxLimb(g, ex, ey, hx, hy, 5, 4, back ? { base: W.wrapDark, light: W.wrap, dark: W.wrapDark } : { base: W.wrap, light: W.wrapLight, dark: W.wrapDark });
+  pxPoly(g, pxBand(ex, ey, ex + (hx - ex) * 0.25, ey + (hy - ey) * 0.25, 8, 6), C.base);   // 袖口
+  pxDot(g, hx - 2, hy - 2, back ? W.skinDark : W.skin, 4, 4);
+  pxDot(g, hx - 2, hy + 1, W.skinDark, 4, 1);
 }
 
+/** 打刀：編繩刀柄與柄頭、圓鍔，刀身微微往刀背彎，刃紋亮、刀背暗，切先斜收 */
 function drawSword(g, hx, hy, c, s) {
-  Px.line(g, hx - c * 8, hy - s * 8, hx + c * 2, hy + s * 2, 3, PAL.hiltWrap);
-  Px.rect(g, hx + c * 3 - 2, hy + s * 3 - 2, 4, 4, PAL.guard);
-  const bx0 = hx + c * 5, by0 = hy + s * 5, bx1 = hx + c * 42, by1 = hy + s * 42;
-  Px.line(g, bx0, by0, bx1, by1, 2, PAL.blade);
-  const nx = -s, ny = c;
-  Px.line(g, bx0 + nx, by0 + ny, bx1 + nx * 0.5, by1 + ny * 0.5, 1, PAL.bladeEdge);
-  // 刀刃上的缺口（受損的長刀）
-  const k = 5 + 37 * 0.62;
-  g.clearRect(Math.round(hx + c * k + nx), Math.round(hy + s * k + ny), 1, 1);
+  const W = WANDERER;
+  const nx = -s, ny = c;   // 刀刃那一側
+  for (let i = -10; i <= 1; i++) pxDot(g, hx + c * i - 1, hy + s * i - 1, W.ito[i & 1], 3, 3);
+  pxDot(g, hx - c * 11 - 1, hy - s * 11 - 1, PAL.guard, 3, 3);
+  const gx = hx + c * 3, gy = hy + s * 3;
+  pxPoly(g, pxBand(gx - nx * 3.5, gy - ny * 3.5, gx + nx * 3.5, gy + ny * 3.5, 3, 3), W.tsuba);
+  pxDot(g, gx - nx * 2 - 0.5, gy - ny * 2 - 0.5, W.tsubaLight);
+  const L = 42, base = 5, edge = [], back = [];
+  for (let i = 0; i <= 12; i++) {
+    const u = i / 12, along = base + (L - base) * u;
+    const curve = 3 * Math.sin(Math.PI * u * 0.5) * u, w = 2.6 - 0.8 * u;
+    const cx = hx + c * along - nx * curve, cy = hy + s * along - ny * curve;
+    edge.push([cx + nx * w * 0.5, cy + ny * w * 0.5]);
+    back.push([cx - nx * w * 0.5, cy - ny * w * 0.5]);
+  }
+  const tip = back[back.length - 1];
+  pxPoly(g, [...edge, [tip[0] + c * 2.5, tip[1] + s * 2.5], ...back.slice().reverse()], W.steel);
+  for (let i = 1; i < edge.length; i++) pxDot(g, edge[i][0] - nx * 0.6, edge[i][1] - ny * 0.6, W.edge);
+  for (let i = 1; i < back.length - 1; i++) pxDot(g, back[i][0] + nx * 0.4, back[i][1] + ny * 0.4, W.spine);
+  pxDot(g, tip[0] + c * 1.5, tip[1] + s * 1.5, '#ffffff');
 }
 
 /**
  * 頭部可傾斜（tilt < 0 = 抬頭看向斜上方）。
- * 先畫到小畫布，再以最近鄰取樣逐像素旋轉，保持像素銳利不模糊。
+ * 先畫到小畫布，再以最近鄰取樣逐像素旋轉，保持像素銳利不模糊。斗笠很寬，所以小畫布開到 40px。
  */
 function drawHead(g, x, y, tilt = 0) {
   if (!tilt) {
     drawHeadRaw(g, x, y);
     return;
   }
-  const S = 26, c = 13;
+  const S = 40, c = 20;
   const tmp = makeCanvas(S, S);
   const tg = tmp.getContext('2d');
   drawHeadRaw(tg, c, c);
@@ -401,44 +497,55 @@ function drawHead(g, x, y, tilt = 0) {
   }
 }
 
+/** 側臉朝右、後頸束起的短髮尾、眼罩與舊傷，頭上壓著寬邊斗笠 */
 function drawHeadRaw(g, x, y) {
+  const W = WANDERER, H = W.hat;
   const hx = Math.round(x), hy = Math.round(y);
-  Px.circle(g, hx, hy, 6, PAL.skin);
-  Px.rect(g, hx - 6, hy - 6, 11, 3, PAL.hair);
-  Px.rect(g, hx - 7, hy - 4, 4, 8, PAL.hair);
-  Px.rect(g, hx - 5, hy - 10, 5, 4, PAL.hair);   // 髮髻
-  Px.rect(g, hx - 9, hy - 9, 4, 2, PAL.hair);
-  // 斜切半面甲
-  for (let dy = -4; dy <= 6; dy++) {
-    for (let dx = -6; dx <= 6; dx++) {
-      if (dx * dx + dy * dy > 37) continue;
-      const v = dx + dy * 0.9;
-      if (v <= 0.5) continue;
-      const col = v < 2 ? PAL.armorLight : (dy > 3 ? PAL.armorShade : PAL.armor);
-      Px.rect(g, hx + dx, hy + dy, 1, 1, col);
-    }
-  }
-  // 狹長的單眼
-  Px.rect(g, hx + 1, hy - 3, 5, 1, PAL.armorDark);
-  Px.rect(g, hx + 2, hy - 2, 4, 1, PAL.eye);
+  pxPoly(g, pxBand(hx - 5, hy + 1, hx - 9, hy + 9, 4, 2), W.hair);   // 髮尾
+  pxPoly(g, [[hx - 5, hy - 4], [hx + 5, hy - 5], [hx + 6, hy - 2], [hx + 7, hy + 1], [hx + 5, hy + 2], [hx + 5, hy + 4], [hx + 2, hy + 6], [hx - 2, hy + 6], [hx - 5, hy + 3]], W.skin);
+  pxPoly(g, [[hx - 5, hy + 1], [hx - 1, hy + 5], [hx + 2, hy + 6], [hx - 2, hy + 6], [hx - 5, hy + 3]], W.skinDark);
+  pxDot(g, hx - 3, hy - 1, W.skinDark, 2, 3);     // 耳朵
+  pxDot(g, hx + 5, hy + 2, W.skinDark);           // 鼻下
+  pxDot(g, hx + 3, hy + 4, '#9c6f62', 2, 1);      // 嘴
+  // 亂髮，前髮垂到眼睛上方
+  pxPoly(g, [[hx - 8, hy - 2], [hx - 6, hy - 8], [hx + 1, hy - 10], [hx + 7, hy - 7], [hx + 8, hy - 3], [hx + 5, hy - 4], [hx + 4, hy - 1], [hx + 2, hy - 4], [hx - 3, hy - 3], [hx - 4, hy + 3], [hx - 8, hy + 2]], W.hair);
+  pxDot(g, hx - 4, hy - 8, W.hairLight, 5, 1);
+  pxDot(g, hx + 1, hy - 7, W.hairLight, 3, 1);
+  // 眼罩遮住看得見的這隻眼，繩子斜繞過頭；眼罩下拖出一道舊傷，下緣透出一點冰藍冷光
+  pxPoly(g, pxBand(hx - 5, hy - 5, hx + 5, hy - 2, 1, 1), '#0e0e14');
+  pxPoly(g, [[hx + 1, hy - 3], [hx + 5, hy - 3], [hx + 5, hy + 1], [hx + 2, hy + 1]], '#0e0e14');
+  pxDot(g, hx + 2, hy - 3, '#3a3446', 2, 1);
+  pxDot(g, hx + 1, hy + 2, '#b0766a', 1, 2);
+  pxDot(g, hx + 4, hy + 1, PAL.eye);
+  // 斗笠：寬邊圓錐，壓得很低；左上受光、帽簷下緣是陰影，竹篾一道道
+  pxPoly(g, [[hx - 14, hy - 3], [hx + 1, hy - 13], [hx + 15, hy - 3], [hx + 12, hy - 1], [hx - 11, hy - 1]], H[1]);
+  pxPoly(g, [[hx - 12, hy - 3], [hx + 1, hy - 12], [hx - 2, hy - 3]], H[0]);
+  pxPoly(g, [[hx - 11, hy - 1], [hx + 12, hy - 1], [hx + 15, hy - 3], [hx + 13, hy]], H[2]);
+  for (let i = -9; i <= 10; i += 4) pxDot(g, hx + i, hy - 3 - (10 - Math.abs(i - 1)) * 0.55, H[2], 1, 2);
+  pxDot(g, hx + 1, hy - 13, H[3], 2, 1);
+  pxDot(g, hx - 3, hy + 2, H[3], 1, 4);           // 繫繩
 }
 
+/** 深藍圍巾的兩條尾巴：前條亮、後條暗，隨 scarfT 飄動 */
 function drawScarfTails(g, x, y, p) {
+  const C = WANDERER.scarf;
   for (let k = 0; k < 2; k++) {
     let px = x, py = y + k * 3;
     for (let i = 1; i <= 7; i++) {
       const wave = Math.sin(p.scarfT * Math.PI * 2 + i * 0.9 + k * 1.4) * i * 0.55;
-      const nx = x - i * 4.6 * p.scarfLen;
-      const ny = y + k * 3 + i * (1.7 - p.scarfLift) + wave;
-      const color = k ? PAL.scarfDark : (i < 3 ? PAL.scarfLight : PAL.scarf);
-      Px.line(g, px, py, nx, ny, Math.max(2, 6 - i * 0.6 - k), color);
+      const nx = x - i * 4.6 * p.scarfLen, ny = y + k * 3 + i * (1.7 - p.scarfLift) + wave;
+      const w = Math.max(2, 6 - i * 0.6 - k);
+      pxPoly(g, pxBand(px, py, nx, ny, w + 0.5, Math.max(1.5, w - 0.4)), k ? C.dark : i < 3 ? C.light : C.base);
+      if (!k && i < 6) pxDot(g, (px + nx) / 2, (py + ny) / 2 + w / 2 - 1, C.dark);
       px = nx;
       py = ny;
     }
+    pxDot(g, px - 2, py, k ? C.dark : C.base, 2, 1);
   }
 }
 
 function drawWanderer(g, p, frame = PLAYER_FRAME) {
+  const W = WANDERER;
   const hipX = frame.cx + p.hx, hipY = frame.feet - 34 + p.hy;
   const lean = Math.max(-24, Math.min(24, p.lean));
   const sinT = lean / 26, cosT = Math.sqrt(1 - sinT * sinT);
@@ -447,48 +554,54 @@ function drawWanderer(g, p, frame = PLAYER_FRAME) {
   const c = Math.cos(p.sword), s = Math.sin(p.sword);
   const handX = shX + 2 + p.hand[0], handY = shY + 4 + p.hand[1];
 
-  if (p.dropSword) {
-    Px.line(g, hipX - 34, frame.feet - 1, hipX - 2, frame.feet - 1, 2, PAL.blade);
-    Px.rect(g, hipX - 40, frame.feet - 2, 6, 3, PAL.hiltWrap);
-  }
-
+  if (p.dropSword) drawSword(g, hipX - 30, frame.feet - 2, -1, 0);
   drawScarfTails(g, shX - 3, shY - 1, p);
 
   const bhx = p.twoHand ? handX - c * 6 : shX - 2 + p.handB[0];
   const bhy = p.twoHand ? handY - s * 6 : shY + 5 + p.handB[1];
   drawArm(g, shX - 2, shY + 5, bhx, bhy, true);
+
+  // 羽織的後襬：垂到大腿中段，隨兩腳張開
+  const lf = legJoints(hipX + 2, hipY, p.legF), lb = legJoints(hipX - 2, hipY, p.legB);
+  const hem = hipY + 15;
+  pxPoly(g, [[hipX - 9, hipY - 6], [hipX + 8, hipY - 6], [Math.min(lf.kx, lb.kx) + 12 + Math.max(0, lean * 0.3), hem], [Math.min(lb.kx, lf.kx) - 8, hem + 1]], W.coat.dark);
   drawLeg(g, hipX - 2, hipY, p.legB, true);
 
-  // 袴
-  Px.rect(g, hipX - 9, hipY - 5, 18, 9, PAL.cloth);
-  Px.rect(g, hipX - 9, hipY + 2, 18, 2, PAL.clothDark);
+  // 軀幹：肩寬腰窄，左上受光、右下背光，腋下往腰帶兩道衣褶
+  const tl = [shX - 8, shY + 2], tr = [shX + 8, shY + 3], br = [hipX + 7, hipY - 1], bl = [hipX - 7, hipY - 1];
+  pxPoly(g, [tl, [shX - 3, shY], [shX + 4, shY], tr, [shX + 9, shY + 9], br, bl, [shX - 9, shY + 10]], W.coat.base);
+  pxPoly(g, [tl, [shX - 3, shY], [shX - 3, shY + 4], [hipX - 4, hipY - 1], bl, [shX - 9, shY + 10]], W.coat.light);
+  pxPoly(g, [[shX + 5, shY + 3], tr, [shX + 9, shY + 9], br, [hipX + 4, hipY - 1]], W.coat.dark);
+  for (const [a, b] of [[0.3, -4], [0.55, -1]]) {
+    const x0 = shX - 6 + lean * a, y0 = shY + 6 + 18 * a;
+    pxPoly(g, pxBand(x0, y0, x0 + 4 + b * 0.3, y0 + 6, 1, 1), W.coat.dark);
+  }
+  // 交領：內衣的白領從頸口斜到腰帶
+  pxPoly(g, [[shX - 1, shY + 1], [shX + 3, shY + 1], [hipX + 4, hipY - 6], [hipX + 1, hipY - 6]], W.inner);
+  pxPoly(g, [[shX + 3, shY + 1], [shX + 5, shY + 2], [hipX + 5, hipY - 6], [hipX + 4, hipY - 6]], W.coat.dark);
 
-  // 軀幹與銀白胸甲
-  Px.line(g, hipX, hipY - 5, shX, shY + 5, 14, PAL.clothDark);
-  Px.line(g, hipX + 1, hipY - 6, shX + 1, shY + 5, 10, PAL.cloth);
-  const ax = cosT * 2, ay = sinT * 2;
-  const midX = hipX + lean * 0.35, midY = hipY - 26 * cosT * 0.35;
-  Px.line(g, midX + ax, midY + ay, shX + ax, shY + 5 + ay, 9, PAL.armorShade);
-  Px.line(g, midX + ax + 1, midY + ay - 1, shX + ax + 1, shY + 4 + ay, 6, PAL.armor);
-  Px.line(g, midX + ax + 3, midY + ay - 2, shX + ax + 3, shY + 3 + ay, 1, PAL.armorLight);
+  // 腰帶、插在左腰斜向後下的刀鞘
+  const obX = hipX + lean * 0.15, obY = hipY - 26 * cosT * 0.15 - 4;
+  pxPoly(g, [[obX - 9, obY], [obX + 9, obY], [obX + 9, obY + 4], [obX - 9, obY + 4]], W.obi);
+  pxDot(g, obX - 9, obY, W.obiLight, 18, 1);
+  pxPoly(g, pxBand(obX - 2, obY + 2, obX - 20, obY + 12, 3, 3), W.sheath);
+  pxDot(g, obX - 4, obY + 2, PAL.guard, 2, 2);
 
-  // 腰帶
-  const obX = hipX + lean * 0.15, obY = hipY - 26 * cosT * 0.15 - 3;
-  Px.rect(g, obX - 8, obY, 17, 3, PAL.obi);
+  // 羽織的前片垂到大腿中段
+  const hemF = hipY + 12;
+  pxPoly(g, [[hipX - 8, obY + 4], [hipX + 9, obY + 4], [Math.max(lf.kx, hipX + 4) + 3, hemF], [hipX - 6, hemF]], W.coat.base);
+  pxPoly(g, [[hipX + 4, obY + 4], [hipX + 9, obY + 4], [Math.max(lf.kx, hipX + 4) + 3, hemF], [hipX + 4, hemF]], W.coat.dark);
+  pxDot(g, hipX - 6, hemF - 1, W.coat.dark, 10, 1);
 
   drawLeg(g, hipX + 2, hipY, p.legF, false);
   drawHead(g, headX, headY, p.headTilt);
 
-  // 深藍色多層圍巾
-  Px.rect(g, shX - 6, shY - 4, 13, 6, PAL.scarf);
-  Px.rect(g, shX - 6, shY - 4, 13, 2, PAL.scarfLight);
-  Px.rect(g, shX - 6, shY + 1, 13, 1, PAL.scarfDark);
-  Px.rect(g, shX - 5, shY - 6, 10, 2, PAL.scarf);
-
-  // 肩甲
-  Px.circle(g, shX + 1, shY + 4, 5, PAL.armorShade);
-  Px.circle(g, shX + 1, shY + 3, 4, PAL.armor);
-  Px.rect(g, shX - 1, shY + 1, 3, 1, PAL.armorLight);
+  // 圍巾在頸部的那一圈、羽織的肩線
+  pxPoly(g, [[shX - 7, shY - 4], [shX + 6, shY - 5], [shX + 7, shY + 2], [shX - 6, shY + 2]], W.scarf.base);
+  pxPoly(g, [[shX - 7, shY - 4], [shX + 6, shY - 5], [shX + 6, shY - 3], [shX - 7, shY - 2]], W.scarf.light);
+  pxDot(g, shX - 6, shY + 1, W.scarf.dark, 12, 1);
+  pxPoly(g, [[shX - 2, shY + 1], [shX + 6, shY + 1], [shX + 8, shY + 7], [shX - 1, shY + 7]], W.coat.base);
+  pxDot(g, shX - 1, shY + 2, W.coat.light, 6, 1);
 
   if (!p.dropSword) drawSword(g, handX, handY, c, s);
   drawArm(g, shX + 2, shY + 4, handX, handY, false);
